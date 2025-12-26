@@ -1,52 +1,35 @@
-import { findByProps } from '@vendetta/metro';
+import { metro } from '@vendetta';
 import { instead } from '@vendetta/patcher';
 import { storage } from '@vendetta/plugin';
 import Settings from "./Settings";
 
-const HTTP = findByProps("del", "put", "post");
-let unpatch: () => void;
+const HTTP = metro.findByProps("get", "post", "put", "del");
+
+let patches = [];
 
 export default {
     onLoad: () => {
         storage.logs ??= [];
         const timestamp = new Date().toLocaleTimeString();
-        storage.logs.unshift(`[${timestamp}] Monitoring URL: silent=false -> true`);
+        storage.logs.unshift(`[${timestamp}] Monitor Started`);
 
-        unpatch = instead("del", HTTP, (args, orig) => {
-            const request = args[0];
-            let url = typeof request === "string" ? request : request?.url;
+        if (HTTP) {
+            patches.push(instead("del", HTTP, (args, orig) => {
+                let url = args[0];
 
-            if (typeof url === "string" && url.includes("/channels/")) {
-                const time = new Date().toLocaleTimeString();
-                
-                if (url.includes("silent=false")) {
-                    const newUrl = url.replace("silent=false", "silent=true");
+                if (typeof url === 'string' && url.includes("/channels/") && url.includes("silent=false")) {
+                    args[0] = url.replace("silent=false", "silent=true");
                     
-                    storage.logs.unshift(`[${time}] MATCH: Changing false to true`);
-                    
-                    if (typeof request === "string") {
-                        args[0] = newUrl;
-                    } else if (request?.url) {
-                        request.url = newUrl;
-                    }
-                } else if (!url.includes("silent=")) {
-                    const separator = url.includes("?") ? "&" : "?";
-                    const newUrl = `${url}${separator}silent=true`;
-                    
-                    storage.logs.unshift(`[${time}] MISSING: Adding silent=true`);
-
-                    if (typeof request === "string") {
-                        args[0] = newUrl;
-                    } else if (request?.url) {
-                        request.url = newUrl;
-                    }
+                    const time = new Date().toLocaleTimeString();
+                    storage.logs.unshift(`[${time}] Switched to silent=true`);
                 }
-            }
-            return orig(...args);
-        });
+
+                return orig(...args);
+            }));
+        }
     },
     onUnload: () => {
-        if (unpatch) unpatch();
+        patches.forEach(unpatch => unpatch());
     },
     settings: Settings,
 }
