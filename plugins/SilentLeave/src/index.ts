@@ -1,36 +1,34 @@
 import { registerCommand, unregisterAllCommands } from "@vendetta/commands";
 import { findByProps } from "@vendetta/metro";
 import { showToast } from "@vendetta/ui/toasts";
-import { storage } from "@vendetta/plugin";
 
 const ChannelStore = findByProps("getChannel");
 const getToken = findByProps("getToken").getToken;
+const discordVersion = findByProps("version")?.version || "305012";
 
 export const loadCommands = () => {
   registerCommand({
     name: "leave",
-    description: "Leave the current Group DM",
+    description: "Leave the current Group DM silently",
     options: [],
     execute: (_, ctx) => {
       const channelId = ctx?.channel?.id;
       const channel = ChannelStore.getChannel(channelId);
-
       if (!channel || !Array.isArray(channel.recipients)) {
         showToast("This command works only in Group DMs.");
         return;
       }
-
       const token = getToken();
       if (!token) {
         showToast("Failed to get token.");
         return;
       }
-
+      const userAgent = `Discord-Android/${discordVersion};RNA`;
       fetch(`https://discord.com/api/v9/channels/${channelId}?silent=true`, {
         method: "DELETE",
         headers: {
           "Authorization": token,
-          "User-Agent": "Discord-Android/305012;RNA",
+          "User-Agent": userAgent,
           "Accept-Encoding": "gzip"
         }
       })
