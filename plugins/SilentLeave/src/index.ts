@@ -4,7 +4,6 @@ import { showToast } from "@vendetta/ui/toasts";
 
 const ChannelStore = findByProps("getChannel");
 const getToken = findByProps("getToken").getToken;
-const discordVersion = findByProps("version")?.version || "305012";
 
 export const loadCommands = () => {
   registerCommand({
@@ -14,21 +13,23 @@ export const loadCommands = () => {
     execute: (_, ctx) => {
       const channelId = ctx?.channel?.id;
       const channel = ChannelStore.getChannel(channelId);
-      if (!channel || !Array.isArray(channel.recipients) || channel.recipients.length <= 1) {
+
+      if (!channel || channel.type !== 3) {
         showToast("This command works only in Group DMs.");
         return;
       }
+
       const token = getToken();
       if (!token) {
         showToast("Failed to get token.");
         return;
       }
-      const userAgent = `Discord-Android/${discordVersion};RNA`;
+
       fetch(`https://discord.com/api/v9/channels/${channelId}?silent=true`, {
         method: "DELETE",
         headers: {
           "Authorization": token,
-          "User-Agent": userAgent,
+          "User-Agent": "Discord-Android/305012;RNA",
           "Accept-Encoding": "gzip"
         }
       })
