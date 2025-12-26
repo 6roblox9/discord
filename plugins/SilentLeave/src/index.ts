@@ -14,7 +14,7 @@ export const loadCommands = () => {
     execute: (_, ctx) => {
       const channelId = ctx?.channel?.id;
       const channel = ChannelStore.getChannel(channelId);
-      if (!channel || !Array.isArray(channel.recipients)) {
+      if (!channel || !Array.isArray(channel.recipients) || channel.recipients.length <= 1) {
         showToast("This command works only in Group DMs.");
         return;
       }
