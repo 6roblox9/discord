@@ -1,5 +1,6 @@
 import { findByProps } from '@vendetta/metro';
 import { instead } from '@vendetta/patcher';
+import { showToast } from '@vendetta/ui/toasts';
 
 const HTTP = findByProps("del", "put", "post");
 
@@ -11,14 +12,20 @@ export default {
       const request = args[0];
       let url = typeof request === "string" ? request : request?.url;
 
-      if (typeof url === "string" && url.includes("/channels/") && !url.includes("silent=true")) {
-        const separator = url.includes("?") ? "&" : "?";
-        const newUrl = `${url}${separator}silent=true`;
+      if (typeof url === "string" && url.includes("/channels/")) {
+        showToast(`Request detected: ${url}`);
+        
+        if (!url.includes("silent=true")) {
+          const separator = url.includes("?") ? "&" : "?";
+          const newUrl = `${url}${separator}silent=true`;
 
-        if (typeof request === "string") {
-          args[0] = newUrl;
-        } else if (request?.url) {
-          request.url = newUrl;
+          showToast("Adding silent=true...");
+
+          if (typeof request === "string") {
+            args[0] = newUrl;
+          } else if (request?.url) {
+            request.url = newUrl;
+          }
         }
       }
 
