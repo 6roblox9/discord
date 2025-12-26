@@ -1,8 +1,9 @@
 import { storage } from "@vendetta/plugin";
 import { useProxy } from "@vendetta/storage";
-import { ScrollView, Text, View } from "react-native";
+import { metro } from "@vendetta";
 import { Forms } from "@vendetta/ui/components";
 
+const { ScrollView, Text, View } = metro.findByProps("ScrollView", "Text", "View");
 const { FormSection, FormRow } = Forms;
 
 export default () => {
