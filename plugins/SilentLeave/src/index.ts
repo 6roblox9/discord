@@ -1,26 +1,27 @@
 import { findByProps } from '@vendetta/metro';
 import { instead } from '@vendetta/patcher';
 
-const HTTP = findByProps("del", "get", "post");
+const HTTP = findByProps("del", "put", "post");
 
 let unpatch: () => void;
 
 export default {
   onLoad: () => {
     unpatch = instead("del", HTTP, (args, orig) => {
-      let url = args[0]?.url || args[0];
+      const request = args[0];
+      let url = typeof request === "string" ? request : request?.url;
 
       if (typeof url === "string" && url.includes("/channels/") && !url.includes("silent=true")) {
         const separator = url.includes("?") ? "&" : "?";
         const newUrl = `${url}${separator}silent=true`;
 
-        if (args[0]?.url) {
-          args[0].url = newUrl;
-        } else {
+        if (typeof request === "string") {
           args[0] = newUrl;
+        } else if (request?.url) {
+          request.url = newUrl;
         }
       }
-      
+
       return orig(...args);
     });
   },
