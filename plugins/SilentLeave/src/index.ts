@@ -1,9 +1,7 @@
-import { metro } from "@vendetta";
 import { instead } from "@vendetta/patcher";
 import { storage } from "@vendetta/plugin";
 import Settings from "./Settings";
 
-const API = metro.findByProps("request", "getAPIBaseURL");
 let patches = [];
 
 export default {
@@ -11,29 +9,32 @@ export default {
     storage.logs ??= [];
     storage.logs.unshift(`[${new Date().toLocaleTimeString()}] Silent Leave Loaded`);
 
-    if (!API?.request) {
-      storage.logs.unshift("[ERROR] API.request not found");
+    if (typeof fetch !== "function") {
+      storage.logs.unshift("[ERROR] fetch not found");
       return;
     }
 
     patches.push(
-      instead("request", API, (args, orig) => {
-        const [options] = args;
+      instead("fetch", globalThis, (args, orig) => {
+        let [url, options] = args;
 
         if (
+          typeof url === "string" &&
           options?.method === "DELETE" &&
-          typeof options.url === "string" &&
-          options.url.startsWith("/channels/")
+          url.includes("/channels/")
         ) {
-          if (!options.url.includes("silent=true")) {
-            options.url += options.url.includes("?")
-              ? "&silent=true"
-              : "?silent=true";
+          if (!url.includes("silent=true")) {
+            url = url.replace("silent=false", "silent=true");
+            if (!url.includes("silent=")) {
+              url += url.includes("?") ? "&silent=true" : "?silent=true";
+            }
 
             storage.logs.unshift(
-              `[${new Date().toLocaleTimeString()}] Patched DELETE ${options.url}`
+              `[${new Date().toLocaleTimeString()}] Patched FETCH ${url}`
             );
           }
+
+          return orig(url, options);
         }
 
         return orig(...args);
