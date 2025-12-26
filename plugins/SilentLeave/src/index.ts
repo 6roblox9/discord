@@ -3,9 +3,7 @@ import { instead } from '@vendetta/patcher';
 import { storage } from '@vendetta/plugin';
 import Settings from "./Settings";
 
-const RequestModule = metro.findByProps("get", "post", "del") || 
-                      metro.findByProps("put", "delete", "post") ||
-                      metro.find(m => m.delete && m.getAPIBaseURL);
+const FluxDispatcher = metro.findByProps("dispatch", "subscribe");
 
 let patches = [];
 
@@ -13,41 +11,28 @@ export default {
     onLoad: () => {
         storage.logs ??= [];
         const timestamp = new Date().toLocaleTimeString();
-        storage.logs.unshift(`[${timestamp}] Revenge Sniper Started`);
+        storage.logs.unshift(`[${timestamp}] Dispatch Sniper Started`);
 
-        if (RequestModule) {
-            storage.logs.unshift(`[OK] Found Request Module`);
-            
-            const methods = ["delete", "del"];
-            methods.forEach(method => {
-                if (typeof RequestModule[method] === "function") {
-                    patches.push(instead(method, RequestModule, (args, orig) => {
-                        const time = new Date().toLocaleTimeString();
-                        let url = "";
+        if (FluxDispatcher) {
+            patches.push(instead("dispatch", FluxDispatcher, (args, orig) => {
+                const action = args[0];
 
-                        if (typeof args[0] === "string") {
-                            url = args[0];
-                        } else if (args[0]?.url) {
-                            url = args[0].url;
-                        }
-
-                        if (url.includes("/channels/")) {
-                            storage.logs.unshift(`[${time}] INTERCEPTED: ${url}`);
-                            
-                            if (url.includes("silent=false")) {
-                                args[0] = typeof args[0] === "string" 
-                                    ? url.replace("silent=false", "silent=true")
-                                    : { ...args[0], url: url.replace("silent=false", "silent=true") };
-                                storage.logs.unshift(`[${time}] MODIFIED TO SILENT`);
-                            }
-                        }
-
-                        return orig(...args);
-                    }));
+                if (action && (action.type === "LEAVE_GROUP_DM" || action.type === "DELETE_CHANNEL")) {
+                    const time = new Date().toLocaleTimeString();
+                    
+                    action.silent = true;
+                    
+                    storage.logs.unshift(`[${time}] Patched Action: ${action.type} (Set silent=true)`);
+                    
+                    if (action.channelId) {
+                        storage.logs.unshift(`[DEBUG] Target Channel: ${action.channelId}`);
+                    }
                 }
-            });
+
+                return orig(...args);
+            }));
         } else {
-            storage.logs.unshift(`[FAIL] Could not find HTTP module`);
+            storage.logs.unshift(`[Error] FluxDispatcher not found`);
         }
     },
     onUnload: () => {
