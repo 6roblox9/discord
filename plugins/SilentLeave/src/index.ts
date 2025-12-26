@@ -1,97 +1,91 @@
-import { registerCommand, unregisterAllCommands } from "@vendetta/commands";
+import { registerCommand } from "@vendetta/commands";
 import { findByProps } from "@vendetta/metro";
 import { showToast } from "@vendetta/ui/toasts";
 import { storage } from "@vendetta/plugin";
-import { React } from "@vendetta/metro/common";
-import { Forms } from "@vendetta/ui/components";
+import { React, url } from "@vendetta/metro/common";
+import { Forms, General } from "@vendetta/ui/components";
 import { getAssetIDByName } from "@vendetta/ui/assets";
 
 const ChannelStore = findByProps("getChannel");
-const getToken = findByProps("getToken").getToken;
+const getTokenModule = findByProps("getToken");
 
-let leaveCommandName = storage.get("leaveCommandName") || "leave";
-let commandUnregister: (() => void) | null = null;
+let unregister;
+
+const Settings = () => {
+    storage.commandName ??= "leave";
+    const [command, setCommand] = React.useState(storage.commandName);
+
+    return (
+        <General.ScrollView>
+            <Forms.FormSection title="Settings">
+                <Forms.FormInput
+                    label="Command Name"
+                    placeholder="leave"
+                    value={command}
+                    onChange={(val) => {
+                        setCommand(val);
+                        storage.commandName = val;
+                    }}
+                />
+                <Forms.FormDivider />
+                <Forms.FormRow
+                    label="Source Code"
+                    subLabel="View on GitHub"
+                    leading={<Forms.FormIcon source={getAssetIDByName("img_account_sync_github_white")} />}
+                    onPress={() => url.openURL("https://google.com")}
+                />
+            </Forms.FormSection>
+        </General.ScrollView>
+    );
+};
 
 const registerLeaveCommand = () => {
-  if (commandUnregister) commandUnregister();
-  commandUnregister = registerCommand({
-    name: leaveCommandName,
-    description: "Leave the current Group DM silently",
-    options: [],
-    execute: (_, ctx) => {
-      const channelId = ctx?.channel?.id;
-      const channel = ChannelStore.getChannel(channelId);
+    if (unregister) unregister();
+    
+    unregister = registerCommand({
+        name: storage.commandName || "leave",
+        description: "Leave the current Group DM silently",
+        options: [],
+        execute: (_, ctx) => {
+            const channelId = ctx?.channel?.id;
+            const channel = ChannelStore?.getChannel(channelId);
 
-      if (!channel || channel.type !== 3) {
-        showToast("This command works only in Group DMs.");
-        return;
-      }
+            if (!channel || channel.type !== 3) {
+                showToast("This command works only in Group DMs.");
+                return;
+            }
 
-      const token = getToken();
-      if (!token) {
-        showToast("Failed to get token.");
-        return;
-      }
+            const token = getTokenModule?.getToken();
+            if (!token) {
+                showToast("Failed to get token.");
+                return;
+            }
 
-      fetch(`https://discord.com/api/v9/channels/${channelId}?silent=true`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": token,
-          "User-Agent": "Discord-Android/305012;RNA",
-          "Accept-Encoding": "gzip"
-        }
-      })
-      .then(res => {
-        if (res.ok) showToast("Left Group DM successfully.");
-        else showToast(`Failed to leave Group DM: ${res.status}`);
-      })
-      .catch(e => showToast(`Error: ${e.message}`));
-    },
-  });
-};
-
-const SettingsComponent = () => {
-  const [cmdName, setCmdName] = React.useState(leaveCommandName);
-
-  const saveCommandName = () => {
-    if (cmdName.trim()) {
-      leaveCommandName = cmdName.trim();
-      storage.set("leaveCommandName", leaveCommandName);
-      registerLeaveCommand();
-      showToast("Command updated successfully", getAssetIDByName("ic_check"));
-    }
-  };
-
-  const openSourceCode = () => {
-    window.open("https://www.google.com", "_blank");
-  };
-
-  return React.createElement(Forms.FormSection, { title: "Leave Command Settings" },
-    React.createElement(Forms.FormText, null, "Customize your leave command:"),
-    React.createElement(Forms.FormInput, {
-      placeholder: "Enter command name",
-      value: cmdName,
-      onChange: setCmdName,
-      onSubmitEditing: saveCommandName
-    }),
-    React.createElement(Forms.FormRow, { label: "Save Command Name", onPress: saveCommandName }),
-    React.createElement(Forms.FormRow, {
-      label: "Source Code",
-      trailing: React.createElement("img", { src: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png", style: { width: 20, height: 20 } }),
-      onPress: openSourceCode
-    })
-  );
-};
-
-export const loadCommands = () => registerLeaveCommand();
-export const unloadCommands = () => {
-  if (commandUnregister) commandUnregister();
-  unregisterAllCommands();
+            fetch(`https://discord.com/api/v9/channels/${channelId}?silent=true`, {
+                method: "DELETE",
+                headers: {
+                    "Authorization": token,
+                    "User-Agent": "Discord-Android/305012;RNA",
+                    "Accept-Encoding": "gzip"
+                }
+            })
+            .then(res => {
+                if (res.ok) showToast("Left Group DM successfully.");
+                else showToast(`Failed: ${res.status}`);
+            })
+            .catch(e => showToast(`Error: ${e.message}`));
+        },
+    });
 };
 
 export default {
-  onLoad() { loadCommands(); },
-  onunload() { unloadCommands(); },
-  settings: SettingsComponent
+    onLoad: () => {
+        storage.commandName ??= "leave";
+        registerLeaveCommand();
+    },
+    onUnload: () => {
+        if (unregister) unregister();
+    },
+    settings: Settings
 };
 
