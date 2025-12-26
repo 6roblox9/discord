@@ -7,6 +7,6 @@
       "id": "000000000000000000"
     }
   ],
-  "main": "index.ts",
+  "main": "src/index.ts",
   "hash": "auto"
 }
