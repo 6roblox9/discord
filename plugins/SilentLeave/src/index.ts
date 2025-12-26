@@ -3,7 +3,7 @@ import { instead } from '@vendetta/patcher';
 import { storage } from '@vendetta/plugin';
 import Settings from "./Settings";
 
-const ChannelActions = metro.findByProps("closePrivateChannel", "leaveGroupDM");
+const ChannelAPI = metro.findByProps("deleteChannel");
 const Dispatcher = metro.findByProps("dispatch", "subscribe");
 
 let patches = [];
@@ -12,17 +12,21 @@ export default {
     onLoad: () => {
         storage.logs ??= [];
         const timestamp = new Date().toLocaleTimeString();
-        storage.logs.unshift(`[${timestamp}] Advanced Monitor Started`);
+        storage.logs.unshift(`[${timestamp}] Logic Switch: API Hooking Started`);
 
-        if (ChannelActions) {
-            patches.push(instead("closePrivateChannel", ChannelActions, (args, orig) => {
+        if (ChannelAPI) {
+            patches.push(instead("deleteChannel", ChannelAPI, (args, orig) => {
                 const time = new Date().toLocaleTimeString();
-                storage.logs.unshift(`[${time}] Intercepted: closePrivateChannel`);
-                
-                if (args[1] !== true) {
+                const channelId = args[0];
+                const silent = args[1];
+
+                storage.logs.unshift(`[${time}] API: deleteChannel for ${channelId}`);
+
+                if (silent !== true) {
                     args[1] = true; 
-                    storage.logs.unshift(`[${time}] Success: Set silent=true (Arg)`);
+                    storage.logs.unshift(`[${time}] SUCCESS: Forced silent flag in API`);
                 }
+                
                 return orig(...args);
             }));
         }
@@ -30,10 +34,9 @@ export default {
         if (Dispatcher) {
             patches.push(instead("dispatch", Dispatcher, (args, orig) => {
                 const action = args[0];
-                if (action.type === "CHANNEL_DELETE" || action.type === "LEAVE_GROUP_DM") {
-                    const time = new Date().toLocaleTimeString();
-                    storage.logs.unshift(`[${time}] Dispatcher: ${action.type}`);
+                if (action.type === "CHANNEL_DELETE") {
                     action.silent = true;
+                    storage.logs.unshift(`[${new Date().toLocaleTimeString()}] Dispatcher: Set action.silent`);
                 }
                 return orig(...args);
             }));
