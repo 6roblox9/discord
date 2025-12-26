@@ -1,0 +1,12 @@
+{
+  "name": "SilentLeave",
+  "description": "Automatically adds silent=true to Group DM leave requests",
+  "authors": [
+    {
+      "name": "User",
+      "id": "000000000000000000"
+    }
+  ],
+  "main": "index.ts",
+  "hash": "auto"
+}
