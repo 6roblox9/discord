@@ -1,1 +1,1 @@
-{"name":"SilentLeave","description":"Automatically adds silent=true to Group DM leave requests","authors":[{"name":"User","id":"000000000000000000"}],"main":"index.js","hash":"653fd75475d4ada085ab7d4c3576ab9597fede4b71495cedc04090093d3a2ca1"}
+{"name":"SilentLeave","description":"Automatically adds silent=true to Group DM leave requests","authors":[{"name":"User","id":"000000000000000000"}],"main":"index.js","hash":"8f2c3c23fb56f809509261a49c77237c2437f26bac73ebc4f70bccf5449b8426"}
