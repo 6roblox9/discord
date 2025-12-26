@@ -3,36 +3,46 @@ import { instead } from '@vendetta/patcher';
 import { storage } from '@vendetta/plugin';
 import Settings from "./Settings";
 
-const FluxDispatcher = metro.findByProps("dispatch", "subscribe");
+const HTTP = metro.findByProps("get", "post", "del") || metro.findByProps("delete", "patch");
 
 let patches = [];
 
 export default {
     onLoad: () => {
         storage.logs ??= [];
-        const timestamp = new Date().toLocaleTimeString();
-        storage.logs.unshift(`[${timestamp}] Dispatch Sniper Started`);
+        storage.logs.unshift(`[${new Date().toLocaleTimeString()}] HTTP Interceptor Ready`);
 
-        if (FluxDispatcher) {
-            patches.push(instead("dispatch", FluxDispatcher, (args, orig) => {
-                const action = args[0];
+        if (HTTP) {
+            const method = HTTP.del ? "del" : "delete";
+            
+            patches.push(instead(method, HTTP, (args, orig) => {
+                let request = args[0];
+                let url = typeof request === 'string' ? request : request?.url;
 
-                if (action && (action.type === "LEAVE_GROUP_DM" || action.type === "DELETE_CHANNEL")) {
+                if (url && url.includes("/channels/")) {
                     const time = new Date().toLocaleTimeString();
                     
-                    action.silent = true;
-                    
-                    storage.logs.unshift(`[${time}] Patched Action: ${action.type} (Set silent=true)`);
-                    
-                    if (action.channelId) {
-                        storage.logs.unshift(`[DEBUG] Target Channel: ${action.channelId}`);
+                    if (typeof request === 'string') {
+                        if (url.includes("silent=false")) {
+                            args[0] = url.replace("silent=false", "silent=true");
+                        } else if (!url.includes("silent=")) {
+                            args[0] = url.includes("?") ? `${url}&silent=true` : `${url}?silent=true`;
+                        }
+                    } else {
+                        if (request.query) {
+                            request.query.silent = "true";
+                        } else {
+                            request.url = url.includes("?") ? `${url}&silent=true` : `${url}?silent=true`;
+                        }
                     }
+                    
+                    storage.logs.unshift(`[${time}] ⚡ FORCE SILENT: ${url.split('/').pop()}`);
                 }
-
+                
                 return orig(...args);
             }));
         } else {
-            storage.logs.unshift(`[Error] FluxDispatcher not found`);
+            storage.logs.unshift(`[ERROR] HTTP Module NOT Found`);
         }
     },
     onUnload: () => {
