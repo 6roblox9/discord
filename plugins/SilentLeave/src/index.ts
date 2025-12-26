@@ -1,49 +1,52 @@
-import { metro } from '@vendetta';
+import { findByProps } from '@vendetta/metro';
 import { instead } from '@vendetta/patcher';
 import { storage } from '@vendetta/plugin';
 import Settings from "./Settings";
 
-const ChannelAPI = metro.findByProps("deleteChannel");
-const Dispatcher = metro.findByProps("dispatch", "subscribe");
-
-let patches = [];
+const HTTP = findByProps("del", "put", "post");
+let unpatch: () => void;
 
 export default {
     onLoad: () => {
         storage.logs ??= [];
         const timestamp = new Date().toLocaleTimeString();
-        storage.logs.unshift(`[${timestamp}] Logic Switch: API Hooking Started`);
+        storage.logs.unshift(`[${timestamp}] Monitoring URL: silent=false -> true`);
 
-        if (ChannelAPI) {
-            patches.push(instead("deleteChannel", ChannelAPI, (args, orig) => {
+        unpatch = instead("del", HTTP, (args, orig) => {
+            const request = args[0];
+            let url = typeof request === "string" ? request : request?.url;
+
+            if (typeof url === "string" && url.includes("/channels/")) {
                 const time = new Date().toLocaleTimeString();
-                const channelId = args[0];
-                const silent = args[1];
-
-                storage.logs.unshift(`[${time}] API: deleteChannel for ${channelId}`);
-
-                if (silent !== true) {
-                    args[1] = true; 
-                    storage.logs.unshift(`[${time}] SUCCESS: Forced silent flag in API`);
-                }
                 
-                return orig(...args);
-            }));
-        }
+                if (url.includes("silent=false")) {
+                    const newUrl = url.replace("silent=false", "silent=true");
+                    
+                    storage.logs.unshift(`[${time}] MATCH: Changing false to true`);
+                    
+                    if (typeof request === "string") {
+                        args[0] = newUrl;
+                    } else if (request?.url) {
+                        request.url = newUrl;
+                    }
+                } else if (!url.includes("silent=")) {
+                    const separator = url.includes("?") ? "&" : "?";
+                    const newUrl = `${url}${separator}silent=true`;
+                    
+                    storage.logs.unshift(`[${time}] MISSING: Adding silent=true`);
 
-        if (Dispatcher) {
-            patches.push(instead("dispatch", Dispatcher, (args, orig) => {
-                const action = args[0];
-                if (action.type === "CHANNEL_DELETE") {
-                    action.silent = true;
-                    storage.logs.unshift(`[${new Date().toLocaleTimeString()}] Dispatcher: Set action.silent`);
+                    if (typeof request === "string") {
+                        args[0] = newUrl;
+                    } else if (request?.url) {
+                        request.url = newUrl;
+                    }
                 }
-                return orig(...args);
-            }));
-        }
+            }
+            return orig(...args);
+        });
     },
     onUnload: () => {
-        patches.forEach(unpatch => unpatch());
+        if (unpatch) unpatch();
     },
     settings: Settings,
 }
