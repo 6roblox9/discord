@@ -1,25 +1,30 @@
 import { findByProps } from "@vendetta/metro";
-import { patcher } from "@vendetta/patcher";
+import { before } from "@vendetta/patcher";
 
 const VoiceStateUpdate = findByProps("updateSelfDeaf", "updateSelfMute");
+const unpatches: (() => void)[] = [];
 
-let patches = [];
+try {
+    if (VoiceStateUpdate) {
+        unpatches.push(
+            before("updateSelfDeaf", VoiceStateUpdate, (args) => {
+                args[0] = true;
+                return args;
+            })
+        );
 
-export default {
-  onLoad: () => {
-    patches.push(
-      patcher.before("updateSelfDeaf", VoiceStateUpdate, (args) => {
-        args[0] = true;
-      })
-    );
-    patches.push(
-      patcher.before("updateSelfMute", VoiceStateUpdate, (args) => {
-        args[0] = false;
-      })
-    );
-  },
-  onUnload: () => {
-    for (const unpatch of patches) unpatch();
-  }
+        unpatches.push(
+            before("updateSelfMute", VoiceStateUpdate, (args) => {
+                args[0] = false;
+                return args;
+            })
+        );
+    }
+} catch (e) {}
+
+export const onUnload = () => {
+    for (const unpatch of unpatches) {
+        unpatch();
+    }
 };
 
