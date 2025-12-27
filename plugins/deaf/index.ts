@@ -1,28 +1,23 @@
 import { findByProps } from "@vendetta/metro";
 import { React } from "@vendetta/metro/common";
-import { after } from "@vendetta/patcher";
-import { Forms } from "@vendetta/ui/components";
+import { Button, ScrollView } from "@vendetta/ui/components";
 
-const Gateway = findByProps("getSocket");
-const Voice = findByProps("getVoiceStateForGuild");
-const Button = Forms.FormButton;
+const Gateway = findByProps("send");
+const VoiceStore = findByProps("getVoiceStateForGuild", "getCurrentUser");
 
-let unpatch;
+function fakeDeafen() {
+  const userId = VoiceStore.getCurrentUser()?.id;
+  if (!userId) return;
 
-function sendFakeDeaf() {
-  const socket = Gateway.getSocket();
-  if (!socket) return;
+  const states = Object.values(VoiceStore.getVoiceStates?.() || {});
+  const state = states.find(v => v.userId === userId);
+  if (!state) return;
 
-  const guildId = Voice?.getCurrentVoiceChannel()?.guild_id;
-  const channelId = Voice?.getCurrentVoiceChannel()?.channel_id;
-
-  if (!guildId || !channelId) return;
-
-  socket.send({
+  Gateway.send({
     op: 4,
     d: {
-      guild_id: guildId,
-      channel_id: channelId,
+      guild_id: state.guildId,
+      channel_id: state.channelId,
       self_mute: false,
       self_deaf: true
     }
@@ -30,22 +25,14 @@ function sendFakeDeaf() {
 }
 
 export default {
-  onLoad() {
-    unpatch = after("render", Forms, (_, ret) => {
-      ret.props.children.push(
-        React.createElement(
-          Button,
-          {
-            text: "Fake Deafen",
-            onPress: sendFakeDeaf
-          }
-        )
-      );
-      return ret;
-    });
-  },
-  onUnload() {
-    if (unpatch) unpatch();
+  name: "Fake Deafen",
+  description: "Send self_deaf true without real deafen",
+  settings() {
+    return (
+      <ScrollView>
+        <Button text="Fake Deafen" onPress={fakeDeafen} />
+      </ScrollView>
+    );
   }
 };
 
