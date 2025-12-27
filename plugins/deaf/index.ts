@@ -1,30 +1,28 @@
 import { findByProps } from "@vendetta/metro";
 import { before } from "@vendetta/patcher";
 
-const VoiceStateUpdate = findByProps("updateSelfDeaf", "updateSelfMute");
-const unpatches: (() => void)[] = [];
+const VoiceState = findByProps("updateSelfDeaf");
+const MediaEngine = findByProps("setSelfDeaf", "setSelfMute");
 
-try {
-    if (VoiceStateUpdate) {
-        unpatches.push(
-            before("updateSelfDeaf", VoiceStateUpdate, (args) => {
-                args[0] = true;
-                return args;
-            })
-        );
+const unpatches = [];
 
-        unpatches.push(
-            before("updateSelfMute", VoiceStateUpdate, (args) => {
-                args[0] = false;
-                return args;
-            })
-        );
-    }
-} catch (e) {}
+if (VoiceState) {
+    unpatches.push(
+        before("updateSelfDeaf", VoiceState, (args) => {
+            args[0] = true; // السيرفر يشوفك ديفين
+            return args;
+        })
+    );
+}
+
+if (MediaEngine) {
+    unpatches.push(
+        before("setSelfDeaf", MediaEngine, () => {
+            return false; // لا تكتم الصوت محليًا
+        })
+    );
+}
 
 export const onUnload = () => {
-    for (const unpatch of unpatches) {
-        unpatch();
-    }
+    unpatches.forEach(u => u());
 };
-
