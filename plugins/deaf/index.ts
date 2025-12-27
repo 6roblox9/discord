@@ -2,27 +2,37 @@ import { findByProps } from "@vendetta/metro";
 import { before } from "@vendetta/patcher";
 
 const VoiceState = findByProps("updateSelfDeaf");
-const MediaEngine = findByProps("setSelfDeaf", "setSelfMute");
+const Audio = findByProps(
+  "setLocalMute",
+  "setLocalDeaf",
+  "setSelfDeaf",
+  "setSelfMute",
+  "setInputVolume",
+  "setOutputVolume"
+);
 
 const unpatches = [];
 
 if (VoiceState) {
-    unpatches.push(
-        before("updateSelfDeaf", VoiceState, (args) => {
-            args[0] = true; // السيرفر يشوفك ديفين
-            return args;
-        })
-    );
+  unpatches.push(
+    before("updateSelfDeaf", VoiceState, (args) => {
+      args[0] = true;
+      return args;
+    })
+  );
 }
 
-if (MediaEngine) {
-    unpatches.push(
-        before("setSelfDeaf", MediaEngine, () => {
-            return false; // لا تكتم الصوت محليًا
-        })
-    );
+if (Audio) {
+  Object.keys(Audio).forEach(k => {
+    if (typeof Audio[k] === "function") {
+      unpatches.push(
+        before(k, Audio, () => false)
+      );
+    }
+  });
 }
 
 export const onUnload = () => {
-    unpatches.forEach(u => u());
+  unpatches.forEach(u => u());
 };
+
