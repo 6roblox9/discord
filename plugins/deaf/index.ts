@@ -1,38 +1,51 @@
 import { findByProps } from "@vendetta/metro";
-import { before } from "@vendetta/patcher";
+import { React } from "@vendetta/metro/common";
+import { after } from "@vendetta/patcher";
+import { Forms } from "@vendetta/ui/components";
 
-const VoiceState = findByProps("updateSelfDeaf");
-const Audio = findByProps(
-  "setLocalMute",
-  "setLocalDeaf",
-  "setSelfDeaf",
-  "setSelfMute",
-  "setInputVolume",
-  "setOutputVolume"
-);
+const Gateway = findByProps("getSocket");
+const Voice = findByProps("getVoiceStateForGuild");
+const Button = Forms.FormButton;
 
-const unpatches = [];
+let unpatch;
 
-if (VoiceState) {
-  unpatches.push(
-    before("updateSelfDeaf", VoiceState, (args) => {
-      args[0] = true;
-      return args;
-    })
-  );
-}
+function sendFakeDeaf() {
+  const socket = Gateway.getSocket();
+  if (!socket) return;
 
-if (Audio) {
-  Object.keys(Audio).forEach(k => {
-    if (typeof Audio[k] === "function") {
-      unpatches.push(
-        before(k, Audio, () => false)
-      );
+  const guildId = Voice?.getCurrentVoiceChannel()?.guild_id;
+  const channelId = Voice?.getCurrentVoiceChannel()?.channel_id;
+
+  if (!guildId || !channelId) return;
+
+  socket.send({
+    op: 4,
+    d: {
+      guild_id: guildId,
+      channel_id: channelId,
+      self_mute: false,
+      self_deaf: true
     }
   });
 }
 
-export const onUnload = () => {
-  unpatches.forEach(u => u());
+export default {
+  onLoad() {
+    unpatch = after("render", Forms, (_, ret) => {
+      ret.props.children.push(
+        React.createElement(
+          Button,
+          {
+            text: "Fake Deafen",
+            onPress: sendFakeDeaf
+          }
+        )
+      );
+      return ret;
+    });
+  },
+  onUnload() {
+    if (unpatch) unpatch();
+  }
 };
 
