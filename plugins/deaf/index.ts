@@ -1,6 +1,6 @@
 import { findByProps } from "@vendetta/metro";
 import { React } from "@vendetta/metro/common";
-import { ScrollView, Button } from "@vendetta/ui/components";
+import { Forms } from "@vendetta/ui/components";
 
 const Gateway = findByProps("send");
 const VoiceStore = findByProps("getVoiceStateForGuild", "getCurrentUser");
@@ -29,9 +29,12 @@ export default {
   description: "Send self_deaf true without real deafen",
   settings() {
     return React.createElement(
-      ScrollView,
+      Forms.FormSection,
       null,
-      React.createElement(Button, { text: "Fake Deafen", onPress: fakeDeafen })
+      React.createElement(
+        Forms.FormButton,
+        { text: "Fake Deafen", onPress: fakeDeafen }
+      )
     );
   }
 };
