@@ -1,18 +1,20 @@
-
-// settings.tsx
-import { React, ReactNative as RN } from "@vendetta/metro/common";
+import { React, ReactNative as RN, findByProps } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
 import { showToast } from "@vendetta/ui/toasts";
 
 const getToken = () => {
   try {
-    return require("@vendetta/metro").findByProps("getToken").getToken();
-  } catch { return null; }
+    const tokenFunc = findByProps("getToken")?.getToken;
+    if (!tokenFunc) return null;
+    return tokenFunc();
+  } catch {
+    return null;
+  }
 };
 
 function applyValue(value: number) {
   const token = getToken();
-  if (!token) return showToast("Failed to get token");
+  if (!token) return showToast("Failed to get token. Make sure you're logged in.");
 
   if (value === 0) {
     fetch("https://discord.com/api/v9/hypesquad/online", {
@@ -61,3 +63,4 @@ export default function Settings() {
     </RN.ScrollView>
   );
 }
+
