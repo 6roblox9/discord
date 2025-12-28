@@ -1,8 +1,8 @@
-import { React } from "@vendetta/metro/common";
+
+// settings.tsx
+import { React, ReactNative as RN } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
 import { showToast } from "@vendetta/ui/toasts";
-import { ScrollView, TextInput, View } from "@vendetta/metro/common";
-import { Button } from "$/lib/redesign";
 
 const getToken = () => {
   try {
@@ -23,7 +23,7 @@ function applyValue(value: number) {
   }
 
   if (![1, 2, 3].includes(value)) {
-    showToast("Only 0, 1, 2, 3 allowed");
+    showToast("Only 0-3 allowed");
     return;
   }
 
@@ -41,26 +41,23 @@ export default function Settings() {
   const [val, setVal] = React.useState(storage.hsValue ?? "");
 
   return (
-    <ScrollView style={{ flex: 1, padding: 12 }}>
-      <View style={{ marginBottom: 12 }}>
-        <TextInput
+    <RN.ScrollView style={{ flex: 1, padding: 12 }}>
+      <RN.View style={{ marginBottom: 12 }}>
+        <RN.TextInput
           placeholder="0 = remove, 1-3 = house"
           value={val}
-          onChangeText={v => setVal(v)}
+          onChangeText={setVal}
           style={{ borderWidth: 1, borderColor: "#555", padding: 8, borderRadius: 6, color: "#fff" }}
         />
-      </View>
+      </RN.View>
 
-      <Button
-        text="Apply"
-        variant="primary"
-        size="md"
+      <RN.Button
+        title="Apply"
         onPress={() => {
           storage.hsValue = val;
           applyValue(Number(val));
         }}
       />
-    </ScrollView>
+    </RN.ScrollView>
   );
 }
-
