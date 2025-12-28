@@ -1,26 +1,22 @@
-import { React, ReactNative as RN, findByProps } from "@vendetta/metro/common";
+// settings.tsx
+import { React, ReactNative as RN } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
+import { findByProps } from "@vendetta/metro";
 import { showToast } from "@vendetta/ui/toasts";
 
-const getToken = () => {
-  try {
-    const tokenFunc = findByProps("getToken")?.getToken;
-    if (!tokenFunc) return null;
-    return tokenFunc();
-  } catch {
-    return null;
-  }
-};
+const getToken = findByProps("getToken").getToken;
 
 function applyValue(value: number) {
   const token = getToken();
-  if (!token) return showToast("Failed to get token. Make sure you're logged in.");
+  if (!token) return showToast("Failed to get token");
 
   if (value === 0) {
     fetch("https://discord.com/api/v9/hypesquad/online", {
       method: "DELETE",
       headers: { Authorization: token },
-    }).then(r => showToast(r.ok ? "HypeSquad removed" : `Failed: ${r.status}`));
+    })
+      .then(res => showToast(res.ok ? "HypeSquad removed" : `Failed: ${res.status}`))
+      .catch(e => showToast(`Error: ${e.message}`));
     return;
   }
 
@@ -36,7 +32,9 @@ function applyValue(value: number) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ house_id: value }),
-  }).then(r => showToast(r.ok ? `HypeSquad set to ${value}` : `Failed: ${r.status}`));
+  })
+    .then(res => showToast(res.ok ? `HypeSquad set to ${value}` : `Failed: ${res.status}`))
+    .catch(e => showToast(`Error: ${e.message}`));
 }
 
 export default function Settings() {
@@ -49,7 +47,13 @@ export default function Settings() {
           placeholder="0 = remove, 1-3 = house"
           value={val}
           onChangeText={setVal}
-          style={{ borderWidth: 1, borderColor: "#555", padding: 8, borderRadius: 6, color: "#fff" }}
+          style={{
+            borderWidth: 1,
+            borderColor: "#555",
+            padding: 8,
+            borderRadius: 6,
+            color: "#fff",
+          }}
         />
       </RN.View>
 
