@@ -13,12 +13,14 @@ function getApi() {
       try {
         if (!m?.exports || m.exports === window) continue;
         if (props.every(p => m.exports?.[p])) return m.exports;
-        for (const k in m.exports)
+        for (const k in m.exports) {
           if (
             props.every(p => m.exports?.[k]?.[p]) &&
             m.exports[k][Symbol.toStringTag] !== "IntlMessagesProxy"
-          )
+          ) {
             return m.exports[k];
+          }
+        }
       } catch {}
     }
   };
@@ -29,10 +31,10 @@ function getApi() {
 export default function Settings() {
   const [value, setValue] = React.useState("");
 
-  const apply = () => {
+  const applyHouse = () => {
     const id = Number(value);
     if (![1, 2, 3].includes(id)) {
-      showToast("Only 1, 2 or 3 are allowed");
+      showToast("Only values 1, 2, or 3 are allowed");
       return;
     }
 
@@ -44,7 +46,7 @@ export default function Settings() {
     showToast(`HypeSquad set to ${id}`);
   };
 
-  const remove = () => {
+  const removeHouse = () => {
     getApi().del("/hypesquad/online");
     showToast("HypeSquad removed");
   };
@@ -64,8 +66,9 @@ export default function Settings() {
         />
       </FormItem>
 
-      <Button text="Apply" onPress={apply} />
-      <Button text="Remove" color="red" onPress={remove} />
+      <Button text="Apply" onPress={applyHouse} />
+      <Button text="Remove" color="red" onPress={removeHouse} />
     </>
   );
 }
+
