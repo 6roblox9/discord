@@ -1,0 +1,11 @@
+{
+  "name": "HypeSquadSwitcher",
+  "description": "Apply or remove a HypeSquad house (1-3).",
+  "authors": [
+    {
+      "name": "User",
+      "id": "000000000000000000"
+    }
+  ],
+  "main": "index.ts"
+}
