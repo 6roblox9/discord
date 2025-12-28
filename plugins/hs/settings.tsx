@@ -1,10 +1,9 @@
 import { React } from "@vendetta/metro/common";
 import { Forms } from "@vendetta/ui/components";
 import { Button } from "@vendetta/ui/components/Button";
-import { TextInput } from "react-native";
 import { showToast } from "@vendetta/ui/toasts";
 
-const { FormText, FormItem } = Forms;
+const { FormText, FormItem, FormInput } = Forms;
 
 function getApi() {
   const mods = (window as any).webpackChunkdiscord_app.push([[Symbol()], {}, (e: any) => e.c]);
@@ -56,11 +55,10 @@ export default function Settings() {
       <FormText>Select a HypeSquad house (1 - 3)</FormText>
 
       <FormItem title="HypeSquad ID">
-        <TextInput
+        <FormInput
           value={value}
-          onChangeText={setValue}
+          onChange={setValue}
           placeholder="1 / 2 / 3"
-          keyboardType="number-pad"
         />
       </FormItem>
 
