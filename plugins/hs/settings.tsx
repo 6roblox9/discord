@@ -41,29 +41,72 @@ export default function Settings() {
   const [val, setVal] = React.useState(storage.hsValue ?? "");
 
   return (
-    <RN.ScrollView style={{ flex: 1, padding: 12 }}>
+    <RN.ScrollView style={{ flex: 1, padding: 16, backgroundColor: "#2f3136" }}>
+      {/* Instructions */}
+      <RN.View style={{ marginBottom: 16 }}>
+        <RN.Text style={{ color: "#fff", fontSize: 16, marginBottom: 6 }}>
+          💡 Instructions:
+        </RN.Text>
+        <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
+          - Use commands in Discord: /hs1, /hs2, /hs3 to select HypeSquad house.
+        </RN.Text>
+        <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
+          - Use /hsr to remove your HypeSquad house.
+        </RN.Text>
+        <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
+          - Here you can set a value from 0 to 3:
+        </RN.Text>
+        <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
+          0 = Remove HypeSquad
+        </RN.Text>
+        <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
+          1 = First house
+        </RN.Text>
+        <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
+          2 = Second house
+        </RN.Text>
+        <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
+          3 = Third house
+        </RN.Text>
+      </RN.View>
+
+      {/* Input */}
       <RN.View style={{ marginBottom: 12 }}>
         <RN.TextInput
-          placeholder="0 = remove, 1-3 = house"
+          placeholder="Enter 0-3"
+          placeholderTextColor="#ccc"
           value={val}
           onChangeText={setVal}
+          keyboardType="numeric"
           style={{
             borderWidth: 1,
-            borderColor: "#555",
-            padding: 8,
-            borderRadius: 6,
+            borderColor: "#7289da",
+            padding: 10,
+            borderRadius: 8,
             color: "#fff",
+            fontSize: 16,
+            backgroundColor: "#202225",
           }}
         />
       </RN.View>
 
-      <RN.Button
-        title="Apply"
+      {/* Apply Button */}
+      <RN.TouchableOpacity
         onPress={() => {
           storage.hsValue = val;
           applyValue(Number(val));
         }}
-      />
+        style={{
+          backgroundColor: "#7289da",
+          paddingVertical: 12,
+          borderRadius: 8,
+          alignItems: "center",
+        }}
+      >
+        <RN.Text style={{ color: "#fff", fontWeight: "bold", fontSize: 16 }}>
+          Apply
+        </RN.Text>
+      </RN.TouchableOpacity>
     </RN.ScrollView>
   );
 }
