@@ -1,4 +1,3 @@
-// settings.tsx
 import { React, ReactNative as RN } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
 import { findByProps } from "@vendetta/metro";
@@ -42,35 +41,6 @@ export default function Settings() {
 
   return (
     <RN.ScrollView style={{ flex: 1, padding: 16, backgroundColor: "#2f3136" }}>
-      {/* Instructions */}
-      <RN.View style={{ marginBottom: 16 }}>
-        <RN.Text style={{ color: "#fff", fontSize: 16, marginBottom: 6 }}>
-          💡 Instructions:
-        </RN.Text>
-        <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
-          - Use commands in Discord: /hs1, /hs2, /hs3 to select HypeSquad house.
-        </RN.Text>
-        <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
-          - Use /hsr to remove your HypeSquad house.
-        </RN.Text>
-        <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
-          - Here you can set a value from 0 to 3:
-        </RN.Text>
-        <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
-          0 = Remove HypeSquad
-        </RN.Text>
-        <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
-          1 = First house
-        </RN.Text>
-        <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
-          2 = Second house
-        </RN.Text>
-        <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
-          3 = Third house
-        </RN.Text>
-      </RN.View>
-
-      {/* Input */}
       <RN.View style={{ marginBottom: 12 }}>
         <RN.TextInput
           placeholder="Enter 0-3"
@@ -90,7 +60,6 @@ export default function Settings() {
         />
       </RN.View>
 
-      {/* Apply Button */}
       <RN.TouchableOpacity
         onPress={() => {
           storage.hsValue = val;
@@ -101,12 +70,40 @@ export default function Settings() {
           paddingVertical: 12,
           borderRadius: 8,
           alignItems: "center",
+          marginBottom: 16,
         }}
       >
         <RN.Text style={{ color: "#fff", fontWeight: "bold", fontSize: 16 }}>
           Apply
         </RN.Text>
       </RN.TouchableOpacity>
+
+      <RN.View>
+        <RN.Text style={{ color: "#fff", fontSize: 16, marginBottom: 6 }}>
+          💡 <RN.Text style={{ color: "#faa81a" }}>Instructions:</RN.Text>
+        </RN.Text>
+        <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
+          - Use <RN.Text style={{ color: "#00bfff" }}>commands</RN.Text> in Discord: <RN.Text style={{ color: "#ff6b81" }}>/hs1</RN.Text>, <RN.Text style={{ color: "#ff6b81" }}>/hs2</RN.Text>, <RN.Text style={{ color: "#ff6b81" }}>/hs3</RN.Text> to select HypeSquad house.
+        </RN.Text>
+        <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
+          - Use <RN.Text style={{ color: "#ff6b81" }}>/hsr</RN.Text> to remove your HypeSquad house.
+        </RN.Text>
+        <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
+          - Here you can set a value from <RN.Text style={{ color: "#00ff7f" }}>0</RN.Text> to <RN.Text style={{ color: "#00ff7f" }}>3</RN.Text>:
+        </RN.Text>
+        <RN.Text style={{ color: "#fff", marginBottom: 2 }}>
+          <RN.Text style={{ color: "#ff6b81" }}>0</RN.Text> = Remove HypeSquad
+        </RN.Text>
+        <RN.Text style={{ color: "#fff", marginBottom: 2 }}>
+          <RN.Text style={{ color: "#ff6b81" }}>1</RN.Text> = First house
+        </RN.Text>
+        <RN.Text style={{ color: "#fff", marginBottom: 2 }}>
+          <RN.Text style={{ color: "#ff6b81" }}>2</RN.Text> = Second house
+        </RN.Text>
+        <RN.Text style={{ color: "#fff", marginBottom: 2 }}>
+          <RN.Text style={{ color: "#ff6b81" }}>3</RN.Text> = Third house
+        </RN.Text>
+      </RN.View>
     </RN.ScrollView>
   );
 }
