@@ -14,7 +14,6 @@ export default function Settings() {
             case "G": return "#43b581";
             case "Y": return "#faa61a";
             case "C": return "#00b0f4";
-            case "R": return "#f04747";
             default: return "#dcddde";
         }
     };
