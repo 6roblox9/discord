@@ -3,131 +3,197 @@ import Settings from "./settings";
 import { log, clearLogs } from "./logger";
 
 const { getToken } = findByProps("getToken");
-const { getSuperPropertiesBase64 } = findByProps("getSuperPropertiesBase64");
 
 let isUnloaded = false;
 
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9215 Chrome/138.0.7204.251 Electron/37.6.0 Safari/537.36';
+
+const PROPS = {
+    os: 'Windows',
+    browser: 'Discord Client',
+    release_channel: 'stable',
+    client_version: '1.0.9215',
+    os_version: '10.0.19045',
+    os_arch: 'x64',
+    app_arch: 'x64',
+    system_locale: 'en-US',
+    has_client_mods: false,
+    client_launch_id: '80933496-6512-4217-86e5-42289632435f',
+    browser_user_agent: USER_AGENT,
+    browser_version: '37.6.0',
+    os_sdk_version: '19045',
+    client_build_number: 471091,
+    native_build_number: 72186,
+    client_event_source: null,
+    launch_signature: '80933496-6512-4217-86e5-42289632435f',
+    client_heartbeat_session_id: '80933496-6512-4217-86e5-42289632435f',
+    client_app_state: 'focused'
+};
+
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+function toBase64(obj: any) {
+    const str = JSON.stringify(obj);
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+    let output = '';
+    for (let block = 0, charCode, i = 0, map = chars;
+        str.charAt(i | 0) || (map = '=', i % 1);
+        output += map.charAt(63 & block >> 8 - i % 1 * 8)) {
+        charCode = str.charCodeAt(i += 3 / 4);
+        if (charCode > 0xFF) throw new Error("'btoa' failed: The string to be encoded contains characters outside of the Latin1 range.");
+        block = block << 8 | charCode;
+    }
+    return output;
+}
 
 function getHeaders() {
     return {
         Authorization: getToken(),
-        "x-super-properties": getSuperPropertiesBase64(),
+        "User-Agent": USER_AGENT,
+        "x-super-properties": toBase64(PROPS),
         "Content-Type": "application/json"
     };
 }
 
+async function retry(fn: () => Promise<any>, n = 5): Promise<any> {
+    for (let i = 0; i < n; i++) {
+        if (isUnloaded) return null;
+        try {
+            return await fn();
+        } catch {
+            await sleep(3000);
+        }
+    }
+    throw new Error("Request failed after retries");
+}
+
 async function fetchQuests() {
-    const res = await fetch('https://discord.com/api/v9/quests/@me', { headers: getHeaders() });
-    return res.json();
+    const r = await retry(() =>
+        fetch('https://discord.com/api/v9/quests/@me', {
+            headers: getHeaders()
+        })
+    );
+    return r ? r.json() : { quests: [] };
 }
 
 async function enroll(id: string) {
-    await fetch(`https://discord.com/api/v9/quests/${id}/enroll`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ location: 11 })
-    });
-}
-
-async function sendVideoProgress(id: string, timestamp: number) {
-    const res = await fetch(`https://discord.com/api/v9/quests/${id}/video-progress`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ timestamp })
-    });
-    return res.json();
-}
-
-async function sendHeartbeat(id: string, applicationId: string, terminal: boolean) {
-    const res = await fetch(`https://discord.com/api/v9/quests/${id}/heartbeat`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ 
-            application_id: applicationId, 
-            terminal 
+    await retry(() =>
+        fetch(`https://discord.com/api/v9/quests/${id}/enroll`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ location: 11, is_targeted: false, metadata_raw: null })
         })
-    });
-    return res.json();
+    );
 }
 
-async function runTask(quest: any, taskType: string) {
+async function video(id: string, ts: number) {
+    const r = await retry(() =>
+        fetch(`https://discord.com/api/v9/quests/${id}/video-progress`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ timestamp: ts })
+        })
+    );
+    return r ? r.json() : {};
+}
+
+async function heartbeat(id: string, app: string, terminal: boolean) {
+    const r = await retry(() =>
+        fetch(`https://discord.com/api/v9/quests/${id}/heartbeat`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ application_id: app, terminal })
+        })
+    );
+    return r ? r.json() : {};
+}
+
+async function getFreshQuest(id: string) {
+    const data = await fetchQuests();
+    return (data.quests || []).find((q: any) => q.id === id);
+}
+
+async function runTask(q: any, task: string) {
     if (isUnloaded) return;
 
-    const questName = quest.config.messages.quest_name;
-    const taskConfig = quest.config.task_config.tasks[taskType];
-    const target = taskConfig.target;
-    
-    let currentProgress = quest.user_status?.progress?.[taskType]?.value || 0;
+    const questName = q.config.messages.quest_name;
+    const id = q.id;
+    const need = q.config.task_config.tasks[task].target;
+    let done = q.user_status?.progress?.[task]?.value || 0;
+    let lastPrint = 0;
 
-    log('Y', `Starting ${questName} [${taskType}]`);
-    log('C', `Progress: ${currentProgress}/${target}`);
+    log('Y', `${questName} type: ${task}`);
 
-    if (taskType.includes('WATCH_VIDEO') || taskType === 'QUEST_TASK_WATCH_VIDEO') {
-        while (currentProgress < target) {
-            if (isUnloaded) return;
-            
+    if (task.includes('WATCH_VIDEO')) {
+        while (done < need) {
+            if (isUnloaded) break;
+
             const increment = 7 + Math.random();
-            const newTimestamp = Math.min(target, currentProgress + increment);
+            const ts = Math.min(need, done + increment);
             
-            const res = await sendVideoProgress(quest.id, newTimestamp);
-            
-            currentProgress += 7;
-            log('C', `Watching... ${Math.min(currentProgress, target).toFixed(0)}/${target}`);
+            const r = await video(id, ts);
+            done += 7;
 
-            if (res.user_status?.completed_at) break;
+            if (Date.now() - lastPrint >= 10000) {
+                log('C', `${questName} ${Math.min(done, need).toFixed(0)}/${need} remaining ${Math.max(0, need - done).toFixed(0)}`);
+                lastPrint = Date.now();
+            }
+
+            if (r.completed_at) break;
             await sleep(2000);
         }
     } else {
-        while (currentProgress < target) {
-            if (isUnloaded) return;
+        while (true) {
+            if (isUnloaded) break;
 
-            const res = await sendHeartbeat(quest.id, quest.config.application.id, false);
-            currentProgress = res.user_status?.progress?.[taskType]?.value || currentProgress;
-            
-            log('C', `Playing... ${currentProgress}/${target}`);
+            const r = await heartbeat(id, q.config.application.id, false);
+            done = r.progress?.[task]?.value || done;
 
-            if (res.user_status?.completed_at) break;
+            if (Date.now() - lastPrint >= 10000) {
+                log('C', `${questName} ${done}/${need} remaining ${Math.max(0, need - done)}`);
+                lastPrint = Date.now();
+            }
+
+            if (r.completed_at) break;
             await sleep(30000);
         }
-        await sendHeartbeat(quest.id, quest.config.application.id, true);
+        if (!isUnloaded) {
+            await heartbeat(id, q.config.application.id, true);
+        }
     }
 
-    log('G', `Task ${taskType} Completed!`);
+    log('G', `${questName} ${task} completed`);
 }
 
 async function processQuest(initialQuest: any) {
     let q = initialQuest;
-    log('G', `Found Quest: ${q.config.messages.quest_name}`);
+    if (!q.user_status?.enrolled_at) await enroll(q.id);
 
-    if (!q.user_status?.enrolled_at) {
-        log('Y', 'Enrolling...');
-        await enroll(q.id);
-        await sleep(1000);
-        const data = await fetchQuests();
-        q = data.quests.find((x: any) => x.id === q.id);
-    }
-
-    const tasks = Object.keys(q.config.task_config.tasks);
-    
-    for (const task of tasks) {
+    while (true) {
         if (isUnloaded) break;
 
-        const target = q.config.task_config.tasks[task].target;
-        const progress = q.user_status?.progress?.[task]?.value || 0;
+        q = await getFreshQuest(q.id);
+        if (!q || q.user_status?.completed_at) break;
 
-        if (progress < target) {
-            await runTask(q, task);
-            await sleep(2000);
-        }
+        const tasks = Object.keys(q.config.task_config.tasks);
+        const pending = tasks.filter(t => {
+            const need = q.config.task_config.tasks[t].target;
+            const done = q.user_status?.progress?.[t]?.value || 0;
+            return done < need;
+        });
+
+        if (!pending.length) break;
+
+        await runTask(q, pending[0]);
+        await sleep(3000);
     }
 
-    log('G', `Quest ${q.config.messages.quest_name} Done.`);
+    if (q) log('G', `${q.config.messages.quest_name} fully completed`);
 }
 
 async function main() {
     if (!getToken()) {
-        log('R', 'Error: No Token found.');
+        log('X', 'Error: No Token found.');
         return;
     }
 
@@ -152,10 +218,10 @@ async function main() {
             await processQuest(q);
         }
 
-        log('G', 'All operations finished.');
+        log('G', 'All quests finished');
 
     } catch (e: any) {
-        log('R', `Error: ${e.message}`);
+        log('X', `Error: ${e.message}`);
     }
 }
 
@@ -168,7 +234,7 @@ export default {
     },
     onUnload: () => {
         isUnloaded = true;
-        log('R', 'Plugin Unloaded.');
+        log('X', 'Plugin Unloaded.');
     },
     settings: Settings,
 };
