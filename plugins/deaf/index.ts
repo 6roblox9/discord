@@ -1,41 +1,52 @@
+import { registerCommand, unregisterAllCommands } from "@vendetta/commands";
 import { findByProps } from "@vendetta/metro";
-import { React } from "@vendetta/metro/common";
-import { Forms } from "@vendetta/ui/components";
+import { showToast } from "@vendetta/ui/toasts";
 
-const Gateway = findByProps("send");
-const VoiceStore = findByProps("getVoiceStateForGuild", "getCurrentUser");
+const ChannelStore = findByProps("getChannel");
+const getToken = findByProps("getToken").getToken;
 
-function fakeDeafen() {
-  const userId = VoiceStore.getCurrentUser()?.id;
-  if (!userId) return;
+const loadCommands = () => {
+  registerCommand({
+    name: "leave",
+    description: "Leave the current Group DM silently",
+    options: [],
+    predicate: (ctx) => {
+      const channelId = ctx?.channel?.id;
+      const channel = ChannelStore.getChannel(channelId);
+      return !!channel && channel.type === 3;
+    },
+    execute: (_, ctx) => {
+      const channelId = ctx.channel.id;
+      const token = getToken();
 
-  const states = Object.values(VoiceStore.getVoiceStates?.() || {});
-  const state = states.find(v => v.userId === userId);
-  if (!state) return;
+      if (!token) {
+        showToast("Failed to get token.");
+        return;
+      }
 
-  Gateway.send({
-    op: 4,
-    d: {
-      guild_id: state.guildId,
-      channel_id: state.channelId,
-      self_mute: false,
-      self_deaf: true
+      fetch(`https://discord.com/api/v9/channels/${channelId}?silent=true`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": token,
+          "User-Agent": "Discord-Android/305012;RNA",
+          "Accept-Encoding": "gzip"
+        }
+      })
+      .then(res => {
+        if (res.ok) showToast("Left Group DM successfully.");
+        else showToast(`Failed: ${res.status}`);
+      })
+      .catch(e => showToast(e.message));
     }
   });
-}
+};
 
 export default {
-  name: "Fake Deafen",
-  description: "Send self_deaf true without real deafen",
-  settings() {
-    return React.createElement(
-      Forms.FormSection,
-      null,
-      React.createElement(
-        Forms.FormButton,
-        { text: "Fake Deafen", onPress: fakeDeafen }
-      )
-    );
+  onLoad() {
+    loadCommands();
+  },
+  onUnload() {
+    unregisterAllCommands();
   }
 };
 
