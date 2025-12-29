@@ -27,7 +27,14 @@ function request(method: string, body?: any) {
     .catch(e => showToast(`Error: ${e.message}`));
 }
 
-function applyHouse(value: number) {
+function applyHouse(raw: any) {
+  const value = Number(raw);
+
+  if (Number.isNaN(value)) {
+    showToast("Enter a valid number");
+    return;
+  }
+
   if (value === 0) {
     request("DELETE");
     showToast("HypeSquad removed");
