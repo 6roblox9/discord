@@ -86,22 +86,22 @@ export default function Settings() {
           - Use <RN.Text style={{ color: "#00bfff" }}>commands</RN.Text> in Discord: <RN.Text style={{ color: "#ff6b81" }}>/hs1</RN.Text>, <RN.Text style={{ color: "#ff6b81" }}>/hs2</RN.Text>, <RN.Text style={{ color: "#ff6b81" }}>/hs3</RN.Text> to select HypeSquad house.
         </RN.Text>
         <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
-          - Use <RN.Text style={{ color: "#ff6b81" }}>/hsr</RN.Text> to remove your HypeSquad house.
+          - Use <RN.Text style={{ color: "#ff6b81" }}>/hsr</RN.Text> to remove your HypeSquad Badge.
         </RN.Text>
         <RN.Text style={{ color: "#fff", marginBottom: 4 }}>
           - Here you can set a value from <RN.Text style={{ color: "#00ff7f" }}>0</RN.Text> to <RN.Text style={{ color: "#00ff7f" }}>3</RN.Text>:
         </RN.Text>
         <RN.Text style={{ color: "#fff", marginBottom: 2 }}>
-          <RN.Text style={{ color: "#ff6b81" }}>0</RN.Text> = Remove HypeSquad
+          <RN.Text style={{ color: "#ff6b81" }}>0</RN.Text> = Remove HypeSquad Badge
         </RN.Text>
         <RN.Text style={{ color: "#fff", marginBottom: 2 }}>
-          <RN.Text style={{ color: "#ff6b81" }}>1</RN.Text> = **Bravery House**
+          <RN.Text style={{ color: "#ff6b81" }}>1</RN.Text> = Bravery House
         </RN.Text>
         <RN.Text style={{ color: "#fff", marginBottom: 2 }}>
-          <RN.Text style={{ color: "#ff6b81" }}>2</RN.Text> = **Brilliance House**
+          <RN.Text style={{ color: "#ff6b81" }}>2</RN.Text> = Brilliance House
         </RN.Text>
         <RN.Text style={{ color: "#fff", marginBottom: 2 }}>
-          <RN.Text style={{ color: "#ff6b81" }}>3</RN.Text> = **Balance House**
+          <RN.Text style={{ color: "#ff6b81" }}>3</RN.Text> = Balance House
         </RN.Text>
       </RN.View>
     </RN.ScrollView>
