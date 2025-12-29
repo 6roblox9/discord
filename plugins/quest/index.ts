@@ -1,31 +1,41 @@
 import { findByProps } from "@vendetta/metro";
-import { showToast } from "@vendetta/ui/toasts";
 import Settings from "./settings";
 import { runQuests } from "./quests";
+import { storage } from "@vendetta/plugin";
 
 const getToken = findByProps("getToken").getToken;
 
-let running = false;
+let started = false;
 
-async function start() {
-  if (running) return;
-  running = true;
+async function boot() {
+  if (started) return;
+  started = true;
+  storage.logs = [];
+  storage.logs.push("Plugin loaded");
+
   const token = getToken();
   if (!token) {
-    running = false;
+    storage.logs.push("Failed to get token");
+    started = false;
     return;
   }
-  const didRun = await runQuests(token);
-  if (!didRun) showToast("No quests found");
-  running = false;
+
+  storage.logs.push("Token acquired");
+  const ran = await runQuests(token);
+
+  if (!ran) storage.logs.push("No quests available");
+  else storage.logs.push("All quests completed");
+
+  started = false;
 }
 
 export default {
   onLoad() {
-    start();
+    boot();
   },
   onUnload() {
-    running = false;
+    started = false;
   },
   settings: Settings
 };
+
