@@ -95,13 +95,13 @@ export default function Settings() {
           <RN.Text style={{ color: "#ff6b81" }}>0</RN.Text> = Remove HypeSquad
         </RN.Text>
         <RN.Text style={{ color: "#fff", marginBottom: 2 }}>
-          <RN.Text style={{ color: "#ff6b81" }}>1</RN.Text> = First house
+          <RN.Text style={{ color: "#ff6b81" }}>1</RN.Text> = **Bravery House**
         </RN.Text>
         <RN.Text style={{ color: "#fff", marginBottom: 2 }}>
-          <RN.Text style={{ color: "#ff6b81" }}>2</RN.Text> = Second house
+          <RN.Text style={{ color: "#ff6b81" }}>2</RN.Text> = **Brilliance House**
         </RN.Text>
         <RN.Text style={{ color: "#fff", marginBottom: 2 }}>
-          <RN.Text style={{ color: "#ff6b81" }}>3</RN.Text> = Third house
+          <RN.Text style={{ color: "#ff6b81" }}>3</RN.Text> = **Balance House**
         </RN.Text>
       </RN.View>
     </RN.ScrollView>
