@@ -1,7 +1,6 @@
 import { registerCommand, unregisterAllCommands } from "@vendetta/commands";
 import { findByProps } from "@vendetta/metro";
 import { showToast } from "@vendetta/ui/toasts";
-import { storage } from "@vendetta/plugin";
 import Settings from "./settings";
 
 const getToken = findByProps("getToken").getToken;
@@ -16,7 +15,7 @@ function request(method: string, body?: any) {
   fetch("https://discord.com/api/v9/hypesquad/online", {
     method,
     headers: {
-      "Authorization": token,
+      Authorization: token,
       "Content-Type": "application/json",
       "User-Agent": "Discord-Android/305012;RNA"
     },
@@ -28,15 +27,21 @@ function request(method: string, body?: any) {
     .catch(e => showToast(`Error: ${e.message}`));
 }
 
-function setHouse(id: number) {
-  request("POST", { house_id: id });
-  const names = ["Remove", "Bravery", "Brilliance", "Balance"];
-  showToast(`HypeSquad set to ${names[id] ?? id}`);
-}
+function applyHouse(value: string) {
+  if (value === "0") {
+    request("DELETE");
+    showToast("HypeSquad removed");
+    return;
+  }
 
-function removeHouse() {
-  request("DELETE");
-  showToast("HypeSquad removed");
+  const id = Number(value);
+  if (![1, 2, 3].includes(id)) {
+    showToast("Invalid selection");
+    return;
+  }
+
+  request("POST", { house_id: id });
+  showToast(`HypeSquad set to ${id}`);
 }
 
 export const loadCommands = () => {
@@ -46,22 +51,18 @@ export const loadCommands = () => {
     options: [
       {
         name: "type",
-        description: "Select HypeSquad house or remove",
-        type: 3, // STRING type
+        description: "Choose a HypeSquad house",
+        type: 3,
         required: true,
         choices: [
-          { name: "Bravery", value: "1" },
-          { name: "Brilliance", value: "2" },
-          { name: "Balance", value: "3" },
-          { name: "Remove", value: "0" }
+          { name: "Bravery House", value: "1" },
+          { name: "Brilliance House", value: "2" },
+          { name: "Balance House", value: "3" },
+          { name: "Remove Badge", value: "0" }
         ]
       }
     ],
-    execute: (args) => {
-      const val = Number(args.type);
-      if (val === 0) removeHouse();
-      else setHouse(val);
-    }
+    execute: (args) => applyHouse(args.type)
   });
 };
 
@@ -70,9 +71,6 @@ export const unloadCommands = () => unregisterAllCommands();
 export default {
   onLoad() {
     loadCommands();
-    if (storage.autoApply && [1, 2, 3].includes(storage.defaultHouse)) {
-      setHouse(storage.defaultHouse);
-    }
   },
   onUnload() {
     unloadCommands();
