@@ -28,7 +28,7 @@ function request(method: string, body?: any) {
 }
 
 function applyHouse(value: string) {
-  if (value === "0") {
+  if (value === "4") {
     request("DELETE");
     showToast("HypeSquad removed");
     return;
@@ -58,7 +58,7 @@ export const loadCommands = () => {
           { name: "Bravery House", value: "1" },
           { name: "Brilliance House", value: "2" },
           { name: "Balance House", value: "3" },
-          { name: "Remove Badge", value: "0" }
+          { name: "Remove Badge", value: "4" }
         ]
       }
     ],
