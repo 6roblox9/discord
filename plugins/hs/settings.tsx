@@ -9,6 +9,11 @@ function applyValue(value: number) {
   const token = getToken();
   if (!token) return showToast("Failed to get token");
 
+  if (![0, 1, 2, 3].includes(value)) {
+    showToast("Only 0-3 allowed");
+    return;
+  }
+
   if (value === 0) {
     fetch("https://discord.com/api/v9/hypesquad/online", {
       method: "DELETE",
@@ -16,11 +21,6 @@ function applyValue(value: number) {
     })
       .then(res => showToast(res.ok ? "HypeSquad removed" : `Failed: ${res.status}`))
       .catch(e => showToast(`Error: ${e.message}`));
-    return;
-  }
-
-  if (![1, 2, 3].includes(value)) {
-    showToast("Only 0-3 allowed");
     return;
   }
 
@@ -62,6 +62,7 @@ export default function Settings() {
 
       <RN.TouchableOpacity
         onPress={() => {
+          if (val === "") return showToast("You must enter a number 0-3");
           storage.hsValue = val;
           applyValue(Number(val));
         }}
