@@ -30,7 +30,8 @@ function request(method: string, body?: any) {
 
 function setHouse(id: number) {
   request("POST", { house_id: id });
-  showToast(`HypeSquad set to ${id}`);
+  const names = ["Remove", "Bravery", "Brilliance", "Balance"];
+  showToast(`HypeSquad set to ${names[id] ?? id}`);
 }
 
 function removeHouse() {
@@ -39,10 +40,29 @@ function removeHouse() {
 }
 
 export const loadCommands = () => {
-  registerCommand({ name: "hs1", description: "Set HypeSquad 1", options: [], execute: () => setHouse(1) });
-  registerCommand({ name: "hs2", description: "Set HypeSquad 2", options: [], execute: () => setHouse(2) });
-  registerCommand({ name: "hs3", description: "Set HypeSquad 3", options: [], execute: () => setHouse(3) });
-  registerCommand({ name: "hsr", description: "Remove HypeSquad", options: [], execute: removeHouse });
+  registerCommand({
+    name: "hypesquad",
+    description: "Set or remove your HypeSquad badge",
+    options: [
+      {
+        name: "type",
+        description: "Select HypeSquad house or remove",
+        type: 3, // STRING type
+        required: true,
+        choices: [
+          { name: "Bravery", value: "1" },
+          { name: "Brilliance", value: "2" },
+          { name: "Balance", value: "3" },
+          { name: "Remove", value: "0" }
+        ]
+      }
+    ],
+    execute: (args) => {
+      const val = Number(args.type);
+      if (val === 0) removeHouse();
+      else setHouse(val);
+    }
+  });
 };
 
 export const unloadCommands = () => unregisterAllCommands();
@@ -50,7 +70,6 @@ export const unloadCommands = () => unregisterAllCommands();
 export default {
   onLoad() {
     loadCommands();
-
     if (storage.autoApply && [1, 2, 3].includes(storage.defaultHouse)) {
       setHouse(storage.defaultHouse);
     }
