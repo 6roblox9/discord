@@ -6,14 +6,9 @@ export default function Settings() {
 
   return (
     <RN.ScrollView style={{ flex: 1, backgroundColor: "#2f3136", padding: 16 }}>
-      <RN.View style={{ marginBottom: 16 }}>
-        <RN.Text style={{ color: "#fff", fontSize: 18, fontWeight: "bold" }}>
-          Quest Auto Solver
-        </RN.Text>
-        <RN.Text style={{ color: "#b9bbbe", marginTop: 4 }}>
-          Runs once on Discord launch
-        </RN.Text>
-      </RN.View>
+      <RN.Text style={{ color: "#fff", fontSize: 18, fontWeight: "bold", marginBottom: 12 }}>
+        Quest Auto Solver
+      </RN.Text>
 
       <RN.TouchableOpacity
         onPress={() => storage.logs = []}
@@ -30,18 +25,18 @@ export default function Settings() {
         </RN.Text>
       </RN.TouchableOpacity>
 
-      <RN.View>
-        {logs.length === 0 && (
-          <RN.Text style={{ color: "#b9bbbe" }}>
-            No logs
-          </RN.Text>
-        )}
-        {logs.map((l: string, i: number) => (
-          <RN.Text key={i} style={{ color: "#fff", marginBottom: 4 }}>
-            {l}
-          </RN.Text>
-        ))}
-      </RN.View>
+      {logs.length === 0 && (
+        <RN.Text style={{ color: "#b9bbbe" }}>
+          No logs
+        </RN.Text>
+      )}
+
+      {logs.map((l: string, i: number) => (
+        <RN.Text key={i} style={{ color: "#fff", marginBottom: 4 }}>
+          {l}
+        </RN.Text>
+      ))}
     </RN.ScrollView>
   );
 }
+
