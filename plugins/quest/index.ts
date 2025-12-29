@@ -8,14 +8,6 @@ let isUnloaded = false;
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9215 Chrome/138.0.7204.251 Electron/37.6.0 Safari/537.36';
 
-function randomUUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-        const r = Math.random() * 16 | 0;
-        const v = c === 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
-}
-
 const PROPS = {
     os: 'Windows',
     browser: 'Discord Client',
@@ -26,15 +18,15 @@ const PROPS = {
     app_arch: 'x64',
     system_locale: 'en-US',
     has_client_mods: false,
-    client_launch_id: randomUUID(),
+    client_launch_id: '80933496-6512-4217-86e5-42289632435f',
     browser_user_agent: USER_AGENT,
     browser_version: '37.6.0',
     os_sdk_version: '19045',
     client_build_number: 471091,
     native_build_number: 72186,
     client_event_source: null,
-    launch_signature: randomUUID(),
-    client_heartbeat_session_id: randomUUID(),
+    launch_signature: '80933496-6512-4217-86e5-42289632435f',
+    client_heartbeat_session_id: '80933496-6512-4217-86e5-42289632435f',
     client_app_state: 'focused'
 };
 
@@ -48,20 +40,18 @@ function toBase64(obj: any) {
         str.charAt(i | 0) || (map = '=', i % 1);
         output += map.charAt(63 & block >> 8 - i % 1 * 8)) {
         charCode = str.charCodeAt(i += 3 / 4);
-        if (charCode > 0xFF) throw new Error("'btoa' failed: The string to be encoded contains characters outside of the Latin1 range.");
         block = block << 8 | charCode;
     }
     return output;
 }
 
-function getHeaders(contentType = false) {
-    const headers: any = {
+function getHeaders() {
+    return {
         Authorization: getToken(),
         "User-Agent": USER_AGENT,
-        "x-super-properties": toBase64(PROPS)
+        "x-super-properties": toBase64(PROPS),
+        "Content-Type": "application/json"
     };
-    if (contentType) headers["Content-Type"] = "application/json";
-    return headers;
 }
 
 async function retry(fn: () => Promise<any>, n = 5): Promise<any> {
@@ -73,12 +63,12 @@ async function retry(fn: () => Promise<any>, n = 5): Promise<any> {
             await sleep(3000);
         }
     }
-    throw new Error("Request failed after retries");
+    return null;
 }
 
 async function fetchQuests() {
     const r = await retry(() =>
-        fetch('https://discord.com/api/v10/quests/@me', {
+        fetch('https://discord.com/api/v9/quests/@me', {
             headers: getHeaders()
         })
     );
@@ -87,9 +77,9 @@ async function fetchQuests() {
 
 async function enroll(id: string) {
     await retry(() =>
-        fetch(`https://discord.com/api/v10/quests/${id}/enroll`, {
+        fetch(`https://discord.com/api/v9/quests/${id}/enroll`, {
             method: 'POST',
-            headers: getHeaders(true),
+            headers: getHeaders(),
             body: JSON.stringify({ location: 11, is_targeted: false, metadata_raw: null })
         })
     );
@@ -97,9 +87,9 @@ async function enroll(id: string) {
 
 async function video(id: string, ts: number) {
     const r = await retry(() =>
-        fetch(`https://discord.com/api/v10/quests/${id}/video-progress`, {
+        fetch(`https://discord.com/api/v9/quests/${id}/video-progress`, {
             method: 'POST',
-            headers: getHeaders(true),
+            headers: getHeaders(),
             body: JSON.stringify({ timestamp: ts })
         })
     );
@@ -108,9 +98,9 @@ async function video(id: string, ts: number) {
 
 async function heartbeat(id: string, app: string, terminal: boolean) {
     const r = await retry(() =>
-        fetch(`https://discord.com/api/v10/quests/${id}/heartbeat`, {
+        fetch(`https://discord.com/api/v9/quests/${id}/heartbeat`, {
             method: 'POST',
-            headers: getHeaders(true),
+            headers: getHeaders(),
             body: JSON.stringify({ application_id: app, terminal })
         })
     );
@@ -124,7 +114,6 @@ async function getFreshQuest(id: string) {
 
 async function runTask(q: any, task: string) {
     if (isUnloaded) return;
-
     const questName = q.config.messages.quest_name;
     const id = q.id;
     const need = q.config.task_config.tasks[task].target;
@@ -136,48 +125,44 @@ async function runTask(q: any, task: string) {
     if (task.includes('WATCH_VIDEO')) {
         while (done < need) {
             if (isUnloaded) break;
-
-            const r = await video(id, Math.min(need, done + 7 + Math.random()));
-            done += 7;
-
+            const ts = Math.min(need, done + 7 + Math.random());
+            const r = await video(id, ts);
+            done = ts;
             if (Date.now() - lastPrint >= 10000) {
-                log('C', `${questName} ${Math.min(done, need)}/${need} remaining ${Math.max(0, need - done)}`);
+                log('C', `${questName} ${Math.min(done, need).toFixed(0)}/${need}`);
                 lastPrint = Date.now();
             }
-
-            if (r.completed_at) break;
+            if (r.completed_at || (r.user_status && r.user_status.completed_at)) break;
             await sleep(2000);
         }
     } else {
         while (true) {
             if (isUnloaded) break;
-
             const r = await heartbeat(id, q.config.application.id, false);
-            done = r.progress?.[task]?.value || done;
-
+            const status = r.user_status || r;
+            done = status.progress?.[task]?.value || done;
             if (Date.now() - lastPrint >= 10000) {
-                log('C', `${questName} ${done}/${need} remaining ${Math.max(0, need - done)}`);
+                log('C', `${questName} ${done}/${need}`);
                 lastPrint = Date.now();
             }
-
-            if (r.completed_at) break;
+            if (status.completed_at) break;
             await sleep(30000);
         }
-        if (!isUnloaded) {
-            await heartbeat(id, q.config.application.id, true);
-        }
+        if (!isUnloaded) await heartbeat(id, q.config.application.id, true);
     }
-
     log('G', `${questName} ${task} completed`);
 }
 
 async function processQuest(initialQuest: any) {
     let q = initialQuest;
-    if (!q.user_status?.enrolled_at) await enroll(q.id);
+    if (!q.user_status?.enrolled_at) {
+        log('Y', `Enrolling in ${q.config.messages.quest_name}...`);
+        await enroll(q.id);
+        await sleep(2000);
+    }
 
     while (true) {
         if (isUnloaded) break;
-
         q = await getFreshQuest(q.id);
         if (!q || q.user_status?.completed_at) break;
 
@@ -188,44 +173,33 @@ async function processQuest(initialQuest: any) {
             return done < need;
         });
 
-        if (!pending.length) break;
-
+        if (pending.length === 0) break;
         await runTask(q, pending[0]);
         await sleep(3000);
     }
-
-    if (q) log('G', `${q.config.messages.quest_name} fully completed`);
+    log('G', `${q.config.messages.quest_name} fully finished`);
 }
 
 async function main() {
     if (!getToken()) {
-        log('X', 'Error: No Token found.');
+        log('X', 'Error: No Token');
         return;
     }
-
-    log('Y', 'Checking for Quests...');
-    
+    log('Y', 'Fetching quests...');
     try {
         const data = await fetchQuests();
         const quests = (data.quests || []).filter((q: any) => 
-            !q.user_status?.completed_at && 
-            new Date(q.config.expires_at) > new Date()
+            !q.user_status?.completed_at && new Date(q.config.expires_at) > new Date()
         );
 
-        if (quests.length === 0) {
-            log('X', 'No active quests found. Stopping.');
-            return;
-        }
-
-        log('Y', `Found ${quests.length} active quests.`);
+        log('Y', `Active quests to process: ${quests.length}`);
 
         for (const q of quests) {
             if (isUnloaded) break;
             await processQuest(q);
+            await sleep(5000);
         }
-
-        log('G', 'All quests finished');
-
+        log('G', 'All available quests have been processed.');
     } catch (e: any) {
         log('X', `Error: ${e.message}`);
     }
@@ -235,12 +209,12 @@ export default {
     onLoad: () => {
         isUnloaded = false;
         clearLogs();
-        log('C', 'Auto Quest Plugin Started');
+        log('C', 'Auto Quest Started');
         main();
     },
     onUnload: () => {
         isUnloaded = true;
-        log('X', 'Plugin Unloaded.');
     },
     settings: Settings,
 };
+
