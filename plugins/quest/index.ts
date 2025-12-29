@@ -1,230 +1,141 @@
-import { storage } from "@vendetta/plugin";
-import { findByProps } from "@vendetta/metro";
-import { showToast } from "@vendetta/ui/toasts";
+import { findByProps } from "@vendetta/metro"
+import { showToast } from "@vendetta/ui/toasts"
+import { storage } from "@vendetta/plugin"
 
-const { getToken } = findByProps("getToken");
+const getToken = findByProps("getToken").getToken
 
-// مسح اللوق عند التحميل
-storage.logs = [];
+let running = false
 
-const log = (message: string) => {
-  const timestamp = new Date().toLocaleTimeString();
-  const logMessage = `[${timestamp}] ${message}`;
-  
-  if (!storage.logs) storage.logs = [];
-  storage.logs.unshift(logMessage);
-  
-  if (storage.logs.length > 50) storage.logs.pop();
-  
-  console.log(logMessage);
-};
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9215 Chrome/138.0.7204.251 Electron/37.6.0 Safari/537.36'
 
-async function fetchQuests(token: string) {
-  try {
-    const response = await fetch("https://discord.com/api/v10/quests/@me", {
-      headers: {
-        Authorization: token,
-        "User-Agent": "Discord-Android/305012;RNA"
-      }
-    });
-    
-    if (!response.ok) {
-      showToast(`خطأ: ${response.status}`);
-      return null;
-    }
-    
-    return await response.json();
-  } catch (error) {
-    showToast(`خطأ في الاتصال`);
-    return null;
-  }
+const PROPS = {
+  os: 'Windows',
+  browser: 'Discord Client',
+  release_channel: 'stable',
+  client_version: '1.0.9215'
 }
 
-async function enrollQuest(token: string, questId: string) {
-  try {
-    await fetch(`https://discord.com/api/v10/quests/${questId}/enroll`, {
-      method: "POST",
-      headers: {
-        Authorization: token,
-        "User-Agent": "Discord-Android/305012;RNA",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ location: 11, is_targeted: false })
-    });
-  } catch (error) {
-    // تجاهل الخطأ
-  }
+const sleep = (ms:number)=>new Promise(r=>setTimeout(r,ms))
+const time = ()=>new Date().toLocaleTimeString()
+
+function log(type:string,msg:string){
+  storage.logs.push(`[${time()}] ${msg}`)
 }
 
-async function sendVideoProgress(token: string, questId: string, timestamp: number) {
-  try {
-    const response = await fetch(`https://discord.com/api/v10/quests/${questId}/video-progress`, {
-      method: "POST",
-      headers: {
-        Authorization: token,
-        "User-Agent": "Discord-Android/305012;RNA",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ timestamp })
-    });
-    
-    return response.json();
-  } catch (error) {
-    return null;
-  }
+async function req(url:string,method='GET',body?:any){
+  const token = getToken()
+  if(!token) throw new Error("No token")
+
+  const r = await fetch(url,{
+    method,
+    headers:{
+      Authorization: token,
+      'User-Agent': USER_AGENT,
+      'x-super-properties': btoa(JSON.stringify(PROPS)),
+      'Content-Type':'application/json'
+    },
+    body: body ? JSON.stringify(body) : undefined
+  })
+  return r.json()
 }
 
-async function sendHeartbeat(token: string, questId: string, appId: string, terminal: boolean) {
-  try {
-    const response = await fetch(`https://discord.com/api/v10/quests/${questId}/heartbeat`, {
-      method: "POST",
-      headers: {
-        Authorization: token,
-        "User-Agent": "Discord-Android/305012;RNA",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ application_id: appId, terminal })
-    });
-    
-    return response.json();
-  } catch (error) {
-    return null;
-  }
+async function fetchQuests(){
+  return req('https://discord.com/api/v10/quests/@me')
 }
 
-async function processQuest(token: string, quest: any) {
-  const questName = quest.config.messages.quest_name;
-  const questId = quest.id;
-  
-  log(`جاري معالجة: ${questName}`);
-  showToast(`بدأ الكويست: ${questName}`);
-  
-  // التسجيل إذا لم يكن مسجل
-  if (!quest.user_status?.enrolled_at) {
-    await enrollQuest(token, questId);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-  }
-  
-  // الحصول على أحدث بيانات الكويست
-  const freshData = await fetchQuests(token);
-  const freshQuest = freshData?.quests?.find((q: any) => q.id === questId);
-  
-  if (!freshQuest || freshQuest.user_status?.completed_at) {
-    log(`اكتمل: ${questName}`);
-    return;
-  }
-  
-  // معالجة المهام
-  const tasks = freshQuest.config.task_config.tasks;
-  
-  for (let i = 0; i < tasks.length; i++) {
-    const task = tasks[i];
-    const taskType = Object.keys(task)[0];
-    const target = task[taskType].target;
-    const current = freshQuest.user_status?.progress?.[i]?.value || 0;
-    
-    if (current >= target) continue;
-    
-    log(`مهمة ${i + 1}: ${taskType} (${current}/${target})`);
-    
-    if (taskType.includes("WATCH_VIDEO")) {
-      let progress = current;
-      while (progress < target) {
-        const newProgress = Math.min(target, progress + 5);
-        await sendVideoProgress(token, questId, newProgress);
-        progress = newProgress;
-        log(`فيديو: ${progress}/${target}`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-    } else {
-      // للأنشطة الأخرى (مثل لعب لعبة)
-      for (let j = current; j < target; j++) {
-        await sendHeartbeat(token, questId, freshQuest.config.application.id, false);
-        log(`نشاط: ${j + 1}/${target}`);
-        await new Promise(resolve => setTimeout(resolve, 10000));
-      }
-      await sendHeartbeat(token, questId, freshQuest.config.application.id, true);
-    }
-  }
-  
-  log(`تم إكمال: ${questName}`);
-  showToast(`تم الكويست: ${questName}`);
+async function enroll(id:string){
+  await req(`https://discord.com/api/v10/quests/${id}/enroll`,'POST',{
+    location:11,is_targeted:false,metadata_raw:null
+  })
 }
 
-async function autoCompleteQuests() {
-  try {
-    log("بدء البحث عن الكويستات...");
-    
-    const token = getToken();
-    if (!token) {
-      log("لا يوجد توكن");
-      showToast("خطأ في التوكن");
-      return;
-    }
-    
-    const data = await fetchQuests(token);
-    if (!data?.quests) {
-      log("لا توجد بيانات كويستات");
-      return;
-    }
-    
-    const now = new Date();
-    const availableQuests = data.quests.filter((quest: any) => {
-      const completed = quest.user_status?.completed_at;
-      const expired = new Date(quest.config.expires_at) <= now;
-      return !completed && !expired;
-    });
-    
-    if (availableQuests.length === 0) {
-      log("لا توجد كويستات متاحة");
-      showToast("لا توجد كويستات");
-      return;
-    }
-    
-    log(`وجد ${availableQuests.length} كويست`);
-    showToast(`وجد ${availableQuests.length} كويست`);
-    
-    for (const quest of availableQuests) {
-      await processQuest(token, quest);
-      await new Promise(resolve => setTimeout(resolve, 3000));
-    }
-    
-    log("تم إكمال جميع الكويستات");
-    showToast("تم إكمال جميع الكويستات!");
-    
-  } catch (error) {
-    log(`خطأ: ${error.message}`);
-  }
+async function video(id:string,ts:number){
+  return req(`https://discord.com/api/v10/quests/${id}/video-progress`,'POST',{timestamp:ts})
 }
 
-// متغير لتخزين المؤقت
-let questTimer: NodeJS.Timeout;
+async function heartbeat(id:string,app:string,terminal:boolean){
+  return req(`https://discord.com/api/v10/quests/${id}/heartbeat`,'POST',{
+    application_id:app,terminal
+  })
+}
+
+async function runTask(q:any,task:string){
+  const need = q.config.task_config.tasks[task].target
+  let done = q.user_status?.progress?.[task]?.value || 0
+
+  log('Y',`${q.config.messages.quest_name} ${task}`)
+
+  if(task.includes('WATCH_VIDEO')){
+    while(done < need){
+      await video(q.id,Math.min(need,done+7))
+      done += 7
+      log('C',`${done}/${need}`)
+      await sleep(2000)
+    }
+  }else{
+    while(done < need){
+      const r = await heartbeat(q.id,q.config.application.id,false)
+      done = r.progress?.[task]?.value || done
+      log('C',`${done}/${need}`)
+      await sleep(30000)
+    }
+    await heartbeat(q.id,q.config.application.id,true)
+  }
+
+  log('G',`${task} completed`)
+}
+
+async function processQuest(q:any){
+  if(!q.user_status?.enrolled_at) await enroll(q.id)
+
+  while(true){
+    const fresh = (await fetchQuests()).quests.find((x:any)=>x.id===q.id)
+    if(!fresh || fresh.user_status?.completed_at) break
+
+    const tasks = Object.keys(fresh.config.task_config.tasks)
+    const pending = tasks.filter(t=>{
+      const need = fresh.config.task_config.tasks[t].target
+      const done = fresh.user_status?.progress?.[t]?.value || 0
+      return done < need
+    })
+
+    if(!pending.length) break
+    await runTask(fresh,pending[0])
+    await sleep(3000)
+  }
+
+  log('G',`${q.config.messages.quest_name} done`)
+}
+
+async function start(){
+  if(running) return
+  running = true
+  storage.logs = []
+
+  const data = await fetchQuests()
+  const quests = (data.quests||[]).filter((q:any)=>
+    !q.user_status?.completed_at &&
+    new Date(q.config.expires_at)>new Date()
+  )
+
+  if(!quests.length){
+    log('X','No quests')
+    running=false
+    return
+  }
+
+  for(const q of quests) await processQuest(q)
+
+  log('G','All quests finished')
+  running=false
+}
 
 export default {
-  onLoad() {
-    log("تم تحميل بلوقن الكويستات");
-    showToast("بلوقن الكويستات جاهز");
-    
-    // تشغيل الكويستات بعد 5 ثواني
-    questTimer = setTimeout(() => {
-      autoCompleteQuests();
-    }, 5000);
+  onLoad(){
+    start()
   },
-  
-  onUnload() {
-    log("إيقاف بلوقن الكويستات");
-    
-    if (questTimer) {
-      clearTimeout(questTimer);
-    }
-    
-    // مسح اللوق عند الإيقاف
-    storage.logs = [];
-  },
-  
-  settings: () => {
-    const { React } = require("@vendetta/metro/common");
-    const { default: Settings } = require("./settings");
-    return React.createElement(Settings);
+  onUnload(){
+    running=false
   }
-};
+}
+
