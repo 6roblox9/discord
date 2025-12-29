@@ -40,11 +40,25 @@ const PROPS = {
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
+function toBase64(obj: any) {
+    const str = JSON.stringify(obj);
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+    let output = '';
+    for (let block = 0, charCode, i = 0, map = chars;
+        str.charAt(i | 0) || (map = '=', i % 1);
+        output += map.charAt(63 & block >> 8 - i % 1 * 8)) {
+        charCode = str.charCodeAt(i += 3 / 4);
+        if (charCode > 0xFF) throw new Error("'btoa' failed: The string to be encoded contains characters outside of the Latin1 range.");
+        block = block << 8 | charCode;
+    }
+    return output;
+}
+
 function getHeaders(contentType = false) {
     const headers: any = {
         Authorization: getToken(),
         "User-Agent": USER_AGENT,
-        "x-super-properties": btoa(JSON.stringify(PROPS))
+        "x-super-properties": toBase64(PROPS)
     };
     if (contentType) headers["Content-Type"] = "application/json";
     return headers;
