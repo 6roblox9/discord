@@ -20,18 +20,22 @@ function request(method: string, body?: any) {
       "User-Agent": "Discord-Android/305012;RNA"
     },
     body: body ? JSON.stringify(body) : undefined
-  })
-    .then(r => {
-      if (!r.ok) showToast(`Request failed: ${r.status}`);
-    })
-    .catch(e => showToast(`Error: ${e.message}`));
+  }).then(r => {
+    if (!r.ok) showToast(`Request failed: ${r.status}`);
+  }).catch(e => showToast(`Error: ${e.message}`));
 }
 
-function applyHouse(raw: any) {
+function applyHouse(args: any) {
+  const raw =
+    args?.type ??
+    args?.[0]?.value ??
+    args?.[0] ??
+    args;
+
   const value = Number(raw);
 
-  if (Number.isNaN(value)) {
-    showToast("Enter a valid number");
+  if (!Number.isInteger(value)) {
+    showToast("Use 0, 1, 2 or 3");
     return;
   }
 
@@ -60,7 +64,7 @@ function applyHouse(raw: any) {
 export const loadCommands = () => {
   registerCommand({
     name: "hypesquad",
-    description: "Set or remove your HypeSquad badge",
+    description: "Apply or remove your HypeSquad badge",
     options: [
       {
         name: "type",
@@ -69,7 +73,7 @@ export const loadCommands = () => {
         required: true
       }
     ],
-    execute: (args) => applyHouse(args.type)
+    execute: (args) => applyHouse(args)
   });
 };
 
@@ -84,4 +88,3 @@ export default {
   },
   settings: Settings
 };
-
