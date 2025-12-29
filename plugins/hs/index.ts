@@ -27,21 +27,27 @@ function request(method: string, body?: any) {
     .catch(e => showToast(`Error: ${e.message}`));
 }
 
-function applyHouse(value: string) {
-  if (value === "4") {
+function applyHouse(value: number) {
+  if (value === 0) {
     request("DELETE");
     showToast("HypeSquad removed");
     return;
   }
 
-  const id = Number(value);
-  if (![1, 2, 3].includes(id)) {
-    showToast("Invalid selection");
+  if (![1, 2, 3].includes(value)) {
+    showToast("Use 0, 1, 2 or 3");
     return;
   }
 
-  request("POST", { house_id: id });
-  showToast(`HypeSquad set to ${id}`);
+  request("POST", { house_id: value });
+
+  const names: Record<number, string> = {
+    1: "Bravery",
+    2: "Brilliance",
+    3: "Balance"
+  };
+
+  showToast(`HypeSquad set to ${names[value]}`);
 }
 
 export const loadCommands = () => {
@@ -51,15 +57,9 @@ export const loadCommands = () => {
     options: [
       {
         name: "type",
-        description: "Choose a HypeSquad house",
-        type: 3,
-        required: true,
-        choices: [
-          { name: "Bravery House", value: "1" },
-          { name: "Brilliance House", value: "2" },
-          { name: "Balance House", value: "3" },
-          { name: "Remove Badge", value: "4" }
-        ]
+        description: "0 remove | 1 bravery | 2 brilliance | 3 balance",
+        type: 4,
+        required: true
       }
     ],
     execute: (args) => applyHouse(args.type)
