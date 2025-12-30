@@ -31,7 +31,7 @@ let unpatchPresence: (() => void) | null = null;
 let unsubMessage: (() => void) | null = null;
 let unsubTyping: (() => void) | null = null;
 
-const setupTracking = () => {
+export const applyTracking = () => {
   for (const id of getTrackedIds()) {
     lastStatuses[id] = PresenceStore.getStatus(id);
   }
@@ -92,7 +92,7 @@ const setupTracking = () => {
 
 export default {
   onLoad() {
-    setupTracking();
+    applyTracking();
   },
 
   onUnload() {
@@ -101,9 +101,6 @@ export default {
     unsubTyping?.();
   },
 
-  settings: Settings,
-  applySettings() {
-    setupTracking();
-  }
+  settings: Settings
 };
 
