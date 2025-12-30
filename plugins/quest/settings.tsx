@@ -13,7 +13,7 @@ export default function Settings() {
     storage.userIds = ids.split(",").map(i => i.trim()).filter(Boolean);
     storage.trackFriends = trackFriends;
     showToast("saved");
-    reload();
+    setTimeout(() => reload(), 50);
   }
 
   return (
