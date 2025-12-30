@@ -2,7 +2,7 @@ import { React, ReactNative as RN } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
 import { showToast } from "@vendetta/ui/toasts";
 
-export default function Settings({ applyCallback }: any) {
+export default function Settings() {
   const [ids, setIds] = React.useState(storage.userIds.join(","));
   const [trackFriends, setTrackFriends] = React.useState(storage.trackFriends);
 
@@ -10,7 +10,6 @@ export default function Settings({ applyCallback }: any) {
     storage.userIds = ids.split(",").map(i => i.trim()).filter(Boolean);
     storage.trackFriends = trackFriends;
     showToast("saved");
-    applyCallback?.();
   }
 
   return (
@@ -58,7 +57,7 @@ export default function Settings({ applyCallback }: any) {
       </RN.View>
 
       <RN.TouchableOpacity
-        onPress={apply}
+        onPress={() => { apply(); global.plugin.applySettings?.(); }}
         style={{
           backgroundColor: "#5865f2",
           paddingVertical: 14,
