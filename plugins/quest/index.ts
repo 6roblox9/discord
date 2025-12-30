@@ -2,7 +2,7 @@ import { findByProps } from "@vendetta/metro";
 import { after } from "@vendetta/patcher";
 import { showToast } from "@vendetta/ui/toasts";
 import { storage } from "@vendetta/plugin";
-import Settings from "./Settings";
+import Settings from "./settings";
 
 const FluxDispatcher = findByProps("dispatch", "subscribe");
 const PresenceStore = findByProps("getStatus");
