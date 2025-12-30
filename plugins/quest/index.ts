@@ -101,9 +101,9 @@ export default {
     unsubTyping?.();
   },
 
-  settings: {
-    ...Settings,
-    applyCallback: setupTracking
-  },
+  settings: Settings,
+  applySettings() {
+    setupTracking();
+  }
 };
 
