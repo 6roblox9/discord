@@ -38,6 +38,8 @@ function getProps() {
   }));
 }
 
+const encodedProps = getProps();
+
 function log(color: string, message: string) {
   const time = new Date().toLocaleTimeString();
   storage.logs = [...(storage.logs || []), { time, message, color }].slice(-50);
@@ -57,7 +59,7 @@ async function request(url: string, method = "GET", body?: any) {
     headers: {
       "Authorization": getToken(),
       "User-Agent": USER_AGENT,
-      "x-super-properties": getProps(),
+      "x-super-properties": encodedProps,
       "Content-Type": "application/json"
     },
     body: body ? JSON.stringify(body) : undefined
@@ -87,9 +89,11 @@ async function runTask(q: any, task: string) {
         application_id: q.config.application.id,
         terminal: false
       });
-      done = r.progress?.[task]?.value || done;
+      if (r.progress && r.progress[task]) {
+        done = r.progress[task].value;
+      }
       log('#00ffff', `${questName} ${done}/${need}`);
-      if (r.completed_at) break;
+      if (r.completed_at || done >= need) break;
       await sleep(30000);
     }
     await request(`https://discord.com/api/v10/quests/${q.id}/heartbeat`, 'POST', {
@@ -105,19 +109,16 @@ async function processQuest(initialQuest: any) {
   if (!q.user_status?.enrolled_at) {
     await request(`https://discord.com/api/v10/quests/${q.id}/enroll`, 'POST', { location: 11, is_targeted: false, metadata_raw: null });
   }
-
   while (true) {
     const data = await request('https://discord.com/api/v10/quests/@me');
     q = data.quests.find((x: any) => x.id === q.id);
     if (!q || q.user_status?.completed_at) break;
-
     const tasks = Object.keys(q.config.task_config.tasks);
     const pending = tasks.filter(t => {
       const need = q.config.task_config.tasks[t].target;
       const done = q.user_status?.progress?.[t]?.value || 0;
       return done < need;
     });
-
     if (!pending.length) break;
     await runTask(q, pending[0]);
     await sleep(3000);
@@ -128,16 +129,14 @@ async function startAutomator() {
   try {
     const user = await request('https://discord.com/api/v10/users/@me');
     log('#43b581', `Logged ${user.username}`);
-
     const data = await request('https://discord.com/api/v10/quests/@me');
     const quests = (data.quests || []).filter((q: any) =>
       !q.user_status?.completed_at && new Date(q.config.expires_at) > new Date()
     );
-
     log('#ffff33', `Quests ${quests.length}`);
     for (const q of quests) await processQuest(q);
     log('#43b581', 'All quests finished');
-  } catch (e: any) {
+  } catch (e) {
     log('#f04747', `Error: ${e.message}`);
   }
 }
