@@ -10,22 +10,19 @@ export default function Settings() {
   const [trackFriends, setTrackFriends] = React.useState(storage.trackFriends);
 
   function apply() {
+    storage.userIds = ids.split(",").map(i => i.trim()).filter(Boolean);
+    storage.trackFriends = trackFriends;
+
     RN.Alert.alert(
-      "Apply?",
-      "Are you sure to apply changes?",
+      "Reload Required",
+      "Settings saved. Reload Discord to apply changes.",
       [
-        { text: "nope", style: "cancel" },
-        {
-          text: "yep",
-          onPress: () => {
-            storage.userIds = ids.split(",").map(i => i.trim()).filter(Boolean);
-            storage.trackFriends = trackFriends;
-            showToast("settings saved");
-            reload();
-          }
-        }
+        { text: "Cancel", style: "cancel" },
+        { text: "Reload", onPress: () => reload() }
       ]
     );
+
+    showToast("settings saved");
   }
 
   return (
