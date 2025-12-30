@@ -69,10 +69,6 @@ export default function Settings() {
           Apply
         </RN.Text>
       </RN.TouchableOpacity>
-
-      <RN.Text style={{ color: "#888", fontSize: 12, textAlign: "center", marginTop: 8 }}>
-        reload to apply changes
-      </RN.Text>
     </RN.ScrollView>
   );
 }
