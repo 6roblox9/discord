@@ -3,7 +3,7 @@ import { storage } from "@vendetta/plugin";
 import { showToast } from "@vendetta/ui/toasts";
 import { findByProps } from "@vendetta/metro";
 
-const { reload } = findByProps("reload");
+const { reload: ReloadApp } = findByProps("reload");
 
 export default function Settings() {
   const [ids, setIds] = React.useState(storage.userIds.join(","));
@@ -13,16 +13,8 @@ export default function Settings() {
     storage.userIds = ids.split(",").map(i => i.trim()).filter(Boolean);
     storage.trackFriends = trackFriends;
 
-    RN.Alert.alert(
-      "Reload Required",
-      "Settings saved. Reload Discord to apply changes.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Reload", onPress: () => reload() }
-      ]
-    );
-
-    showToast("settings saved");
+    showToast("Settings saved, reloading...");
+    ReloadApp();
   }
 
   return (
