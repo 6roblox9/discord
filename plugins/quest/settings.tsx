@@ -12,17 +12,8 @@ export default function Settings() {
   function apply() {
     storage.userIds = ids.split(",").map(i => i.trim()).filter(Boolean);
     storage.trackFriends = trackFriends;
-
-    RN.Alert.alert(
-      "Reload Required",
-      "Settings saved. Reload Discord to apply changes.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Reload", onPress: () => reload() }
-      ]
-    );
-
-    showToast("settings saved");
+    showToast("saved");
+    reload();
   }
 
   return (
