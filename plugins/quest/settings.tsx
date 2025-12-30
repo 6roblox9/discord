@@ -1,4 +1,4 @@
-import { React, ReactNative as RN, NativeModules } from "@vendetta/metro/common";
+import { React, ReactNative as RN } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
 import { showToast } from "@vendetta/ui/toasts";
 
@@ -10,7 +10,6 @@ export default function Settings() {
     storage.userIds = ids.split(",").map(i => i.trim()).filter(Boolean);
     storage.trackFriends = trackFriends;
     showToast("saved");
-    NativeModules.BundleUpdaterManager.reload();
   }
 
   return (
@@ -70,6 +69,10 @@ export default function Settings() {
           Apply
         </RN.Text>
       </RN.TouchableOpacity>
+
+      <RN.Text style={{ color: "#888", fontSize: 12, textAlign: "center", marginTop: 8 }}>
+        reload to apply changes
+      </RN.Text>
     </RN.ScrollView>
   );
 }
