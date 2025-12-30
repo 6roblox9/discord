@@ -10,7 +10,7 @@ export default function Settings() {
         <RN.View style={{ flex: 1, backgroundColor: "#202225" }}>
             <RN.View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: "#2f3136" }}>
                 <RN.Text style={{ color: "#fff", fontSize: 20, fontWeight: "bold" }}>
-                    Quest Autocompleter Logs
+                    Quest Logs
                 </RN.Text>
             </RN.View>
 
@@ -20,15 +20,15 @@ export default function Settings() {
             >
                 {logs.length === 0 ? (
                     <RN.Text style={{ color: "#8e9297", textAlign: "center", marginTop: 20 }}>
-                        No logs yet. Restart Discord to run tasks.
+                        Waiting for tasks...
                     </RN.Text>
                 ) : (
                     logs.map((log: any, i: number) => (
-                        <RN.View key={i} style={{ marginBottom: 8, flexDirection: "row" }}>
-                            <RN.Text style={{ color: "#72767d", fontFamily: "monospace", fontSize: 12 }}>
-                                [{log.time}] 
+                        <RN.View key={i} style={{ marginBottom: 6, flexDirection: "row", flexWrap: "wrap" }}>
+                            <RN.Text style={{ color: "#72767d", fontSize: 12, width: 85 }}>
+                                [{log.time}]
                             </RN.Text>
-                            <RN.Text style={{ color: log.color, marginLeft: 8, fontWeight: "500" }}>
+                            <RN.Text style={{ color: log.color, fontWeight: "500", flex: 1 }}>
                                 {log.message}
                             </RN.Text>
                         </RN.View>
