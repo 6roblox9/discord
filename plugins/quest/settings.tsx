@@ -1,20 +1,16 @@
 import { React, ReactNative as RN } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
 import { showToast } from "@vendetta/ui/toasts";
-import { findByProps } from "@vendetta/metro";
 
-const { reload: ReloadApp } = findByProps("reload");
-
-export default function Settings() {
+export default function Settings({ applyCallback }: any) {
   const [ids, setIds] = React.useState(storage.userIds.join(","));
   const [trackFriends, setTrackFriends] = React.useState(storage.trackFriends);
 
   function apply() {
     storage.userIds = ids.split(",").map(i => i.trim()).filter(Boolean);
     storage.trackFriends = trackFriends;
-
-    showToast("Settings saved, reloading...");
-    ReloadApp();
+    showToast("saved");
+    applyCallback?.();
   }
 
   return (
