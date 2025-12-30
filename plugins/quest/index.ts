@@ -9,6 +9,7 @@ const PresenceStore = findByProps("getStatus");
 const RelationshipStore = findByProps("getFriendIDs");
 const ChannelStore = findByProps("getChannel");
 const GuildStore = findByProps("getGuild");
+const UserStore = findByProps("getUser");
 
 const lastStatuses: Record<string, string | undefined> = {};
 
@@ -19,6 +20,11 @@ const getTrackedIds = () => {
   }
   for (const id of storage.userIds ?? []) ids.add(id);
   return [...ids];
+};
+
+const getName = (id: string) => {
+  const u = UserStore.getUser(id);
+  return u?.username ?? id;
 };
 
 let unpatchPresence: (() => void) | null = null;
@@ -37,14 +43,25 @@ export default {
       if (!getTrackedIds().includes(id)) return;
       if (lastStatuses[id] !== payload.status) {
         lastStatuses[id] = payload.status;
-        showToast(`user ${id} is now ${payload.status}`);
+        showToast(`${getName(id)} is now ${payload.status}`);
       }
     });
 
     const onMessage = (payload: any) => {
-      const id = payload?.message?.author?.id;
+      const msg = payload?.message;
+      const id = msg?.author?.id;
       if (!getTrackedIds().includes(id)) return;
-      showToast(`user ${id} sent a message`);
+      const channel = ChannelStore.getChannel(msg.channel_id);
+      if (!channel) return;
+
+      if (channel.guild_id) {
+        const guild = GuildStore.getGuild(channel.guild_id);
+        showToast(`${getName(id)} sent message in ${guild?.name} #${channel.name}`);
+      } else if (channel.type === 3) {
+        showToast(`${getName(id)} sent message in group`);
+      } else {
+        showToast(`${getName(id)} sent message in DM`);
+      }
     };
 
     const onTyping = (payload: any) => {
@@ -52,11 +69,14 @@ export default {
       if (!getTrackedIds().includes(id)) return;
       const channel = ChannelStore.getChannel(payload.channelId);
       if (!channel) return;
+
       if (channel.guild_id) {
         const guild = GuildStore.getGuild(channel.guild_id);
-        showToast(`user ${id} typing in ${guild?.name ?? "server"}`);
+        showToast(`${getName(id)} typing in ${guild?.name} #${channel.name}`);
+      } else if (channel.type === 3) {
+        showToast(`${getName(id)} typing in group`);
       } else {
-        showToast(`user ${id} typing in DM`);
+        showToast(`${getName(id)} typing in DM`);
       }
     };
 
