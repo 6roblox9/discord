@@ -1,0 +1,11 @@
+{
+  "name": "FakeDeafen",
+  "description": "Shows you as deafened while you can still hear and talk.",
+  "authors": [
+    {
+      "name": "User",
+      "id": "000000000000000000"
+    }
+  ],
+  "main": "index.ts"
+}
