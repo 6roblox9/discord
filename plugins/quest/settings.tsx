@@ -1,4 +1,4 @@
-import { React, ReactNative as RN } from "@vendetta/metro/common";
+import { React, ReactNative as RN, nativeModuleProxy } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
 import { showToast } from "@vendetta/ui/toasts";
 
@@ -10,6 +10,7 @@ export default function Settings() {
     storage.userIds = ids.split(",").map(i => i.trim()).filter(Boolean);
     storage.trackFriends = trackFriends;
     showToast("saved");
+    nativeModuleProxy.BundleUpdaterManager.reload();
   }
 
   return (
