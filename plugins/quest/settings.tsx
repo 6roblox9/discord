@@ -1,7 +1,7 @@
 import { React, ReactNative as RN } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
 import { showToast } from "@vendetta/ui/toasts";
-import { applyTracking } from "./index";
+import { NativeModules } from "react-native";
 
 export default function Settings() {
   const [ids, setIds] = React.useState(storage.userIds.join(","));
@@ -11,7 +11,7 @@ export default function Settings() {
     storage.userIds = ids.split(",").map(i => i.trim()).filter(Boolean);
     storage.trackFriends = trackFriends;
     showToast("saved");
-    applyTracking();
+    NativeModules.BundleUpdaterManager.reload();
   }
 
   return (
