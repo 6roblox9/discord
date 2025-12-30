@@ -10,10 +10,22 @@ export default function Settings() {
   const [trackFriends, setTrackFriends] = React.useState(storage.trackFriends);
 
   function apply() {
-    storage.userIds = ids.split(",").map(i => i.trim()).filter(Boolean);
-    storage.trackFriends = trackFriends;
-    showToast("saved");
-    setTimeout(() => reload(), 50);
+    RN.Alert.alert(
+      "Apply?",
+      "Are you sure to apply changes?",
+      [
+        { text: "nope", style: "cancel" },
+        {
+          text: "yep",
+          onPress: () => {
+            storage.userIds = ids.split(",").map(i => i.trim()).filter(Boolean);
+            storage.trackFriends = trackFriends;
+            showToast("settings saved");
+            reload();
+          }
+        }
+      ]
+    );
   }
 
   return (
