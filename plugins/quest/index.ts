@@ -11,6 +11,9 @@ const ChannelStore = findByProps("getChannel");
 const GuildStore = findByProps("getGuild");
 const UserStore = findByProps("getUser");
 
+if (storage.trackFriends === undefined) storage.trackFriends = true;
+if (!storage.userIds) storage.userIds = [];
+
 const lastStatuses: Record<string, string | undefined> = {};
 
 const getTrackedIds = () => {
@@ -18,14 +21,11 @@ const getTrackedIds = () => {
   if (storage.trackFriends) {
     for (const id of RelationshipStore.getFriendIDs()) ids.add(id);
   }
-  for (const id of storage.userIds ?? []) ids.add(id);
+  for (const id of storage.userIds) ids.add(id);
   return [...ids];
 };
 
-const getName = (id: string) => {
-  const u = UserStore.getUser(id);
-  return u?.username ?? id;
-};
+const getName = (id: string) => UserStore.getUser(id)?.username ?? id;
 
 let unpatchPresence: (() => void) | null = null;
 let unsubMessage: (() => void) | null = null;
@@ -37,43 +37,43 @@ export default {
       lastStatuses[id] = PresenceStore.getStatus(id);
     }
 
-    unpatchPresence = after("dispatch", FluxDispatcher, ([payload]) => {
-      if (payload?.type !== "PRESENCE_UPDATE") return;
-      const id = payload.user?.id;
+    unpatchPresence = after("dispatch", FluxDispatcher, ([p]) => {
+      if (p?.type !== "PRESENCE_UPDATE") return;
+      const id = p.user?.id;
       if (!getTrackedIds().includes(id)) return;
-      if (lastStatuses[id] !== payload.status) {
-        lastStatuses[id] = payload.status;
-        showToast(`${getName(id)} is now ${payload.status}`);
+      if (lastStatuses[id] !== p.status) {
+        lastStatuses[id] = p.status;
+        showToast(`${getName(id)} is now ${p.status}`);
       }
     });
 
-    const onMessage = (payload: any) => {
-      const msg = payload?.message;
-      const id = msg?.author?.id;
+    const onMessage = (p: any) => {
+      const m = p?.message;
+      const id = m?.author?.id;
       if (!getTrackedIds().includes(id)) return;
-      const channel = ChannelStore.getChannel(msg.channel_id);
-      if (!channel) return;
+      const c = ChannelStore.getChannel(m.channel_id);
+      if (!c) return;
 
-      if (channel.guild_id) {
-        const guild = GuildStore.getGuild(channel.guild_id);
-        showToast(`${getName(id)} sent message in ${guild?.name} #${channel.name}`);
-      } else if (channel.type === 3) {
-        showToast(`${getName(id)} sent message in group`);
+      if (c.guild_id) {
+        const g = GuildStore.getGuild(c.guild_id);
+        showToast(`${getName(id)} messaged in ${g?.name} #${c.name}`);
+      } else if (c.type === 3) {
+        showToast(`${getName(id)} messaged in group`);
       } else {
-        showToast(`${getName(id)} sent message in DM`);
+        showToast(`${getName(id)} messaged in DM`);
       }
     };
 
-    const onTyping = (payload: any) => {
-      const id = payload?.userId;
+    const onTyping = (p: any) => {
+      const id = p?.userId;
       if (!getTrackedIds().includes(id)) return;
-      const channel = ChannelStore.getChannel(payload.channelId);
-      if (!channel) return;
+      const c = ChannelStore.getChannel(p.channelId);
+      if (!c) return;
 
-      if (channel.guild_id) {
-        const guild = GuildStore.getGuild(channel.guild_id);
-        showToast(`${getName(id)} typing in ${guild?.name} #${channel.name}`);
-      } else if (channel.type === 3) {
+      if (c.guild_id) {
+        const g = GuildStore.getGuild(c.guild_id);
+        showToast(`${getName(id)} typing in ${g?.name} #${c.name}`);
+      } else if (c.type === 3) {
         showToast(`${getName(id)} typing in group`);
       } else {
         showToast(`${getName(id)} typing in DM`);
