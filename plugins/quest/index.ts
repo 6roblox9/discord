@@ -15,7 +15,7 @@ function uuid() {
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9215 Chrome/138.0.7204.251 Electron/37.6.0 Safari/537.36';
 
 function getProps() {
-  return btoa(JSON.stringify({
+  const props = {
     os: 'Windows',
     browser: 'Discord Client',
     release_channel: 'stable',
@@ -35,7 +35,8 @@ function getProps() {
     launch_signature: uuid(),
     client_heartbeat_session_id: uuid(),
     client_app_state: 'focused'
-  }));
+  };
+  return btoa(JSON.stringify(props));
 }
 
 const encodedProps = getProps();
@@ -49,21 +50,30 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 async function retry(fn: any, n = 5) {
   for (let i = 0; i < n; i++) {
-    try { return await fn(); } catch { await sleep(3000); }
+    try {
+      const res = await fn();
+      return res;
+    } catch {
+      await sleep(3000);
+    }
   }
 }
 
 async function request(url: string, method = "GET", body?: any) {
-  return await retry(() => fetch(url, {
-    method,
-    headers: {
-      "Authorization": getToken(),
-      "User-Agent": USER_AGENT,
-      "x-super-properties": encodedProps,
-      "Content-Type": "application/json"
-    },
-    body: body ? JSON.stringify(body) : undefined
-  }).then(r => r.json()));
+  return await retry(async () => {
+    const response = await fetch(url, {
+      method,
+      headers: {
+        "Authorization": getToken(),
+        "User-Agent": USER_AGENT,
+        "x-super-properties": encodedProps,
+        "Content-Type": "application/json"
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  });
 }
 
 async function runTask(q: any, task: string) {
@@ -80,7 +90,7 @@ async function runTask(q: any, task: string) {
       });
       done += 7;
       log('#00ffff', `${questName} ${Math.min(done, need)}/${need}`);
-      if (r.completed_at) break;
+      if (r?.completed_at) break;
       await sleep(2000);
     }
   } else {
@@ -89,11 +99,14 @@ async function runTask(q: any, task: string) {
         application_id: q.config.application.id,
         terminal: false
       });
-      if (r.progress && r.progress[task]) {
+      
+      if (r && r.progress && r.progress[task]) {
         done = r.progress[task].value;
       }
+      
       log('#00ffff', `${questName} ${done}/${need}`);
-      if (r.completed_at || done >= need) break;
+      
+      if (r?.completed_at || done >= need) break;
       await sleep(30000);
     }
     await request(`https://discord.com/api/v10/quests/${q.id}/heartbeat`, 'POST', {
@@ -109,16 +122,19 @@ async function processQuest(initialQuest: any) {
   if (!q.user_status?.enrolled_at) {
     await request(`https://discord.com/api/v10/quests/${q.id}/enroll`, 'POST', { location: 11, is_targeted: false, metadata_raw: null });
   }
+
   while (true) {
     const data = await request('https://discord.com/api/v10/quests/@me');
     q = data.quests.find((x: any) => x.id === q.id);
     if (!q || q.user_status?.completed_at) break;
+
     const tasks = Object.keys(q.config.task_config.tasks);
     const pending = tasks.filter(t => {
-      const need = q.config.task_config.tasks[t].target;
-      const done = q.user_status?.progress?.[t]?.value || 0;
-      return done < need;
+      const target = q.config.task_config.tasks[t].target;
+      const current = q.user_status?.progress?.[t]?.value || 0;
+      return current < target;
     });
+
     if (!pending.length) break;
     await runTask(q, pending[0]);
     await sleep(3000);
@@ -129,10 +145,12 @@ async function startAutomator() {
   try {
     const user = await request('https://discord.com/api/v10/users/@me');
     log('#43b581', `Logged ${user.username}`);
+
     const data = await request('https://discord.com/api/v10/quests/@me');
     const quests = (data.quests || []).filter((q: any) =>
       !q.user_status?.completed_at && new Date(q.config.expires_at) > new Date()
     );
+
     log('#ffff33', `Quests ${quests.length}`);
     for (const q of quests) await processQuest(q);
     log('#43b581', 'All quests finished');
