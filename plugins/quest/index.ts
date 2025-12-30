@@ -14,7 +14,7 @@ const UserStore = findByProps("getUser");
 if (storage.trackFriends === undefined) storage.trackFriends = true;
 if (!storage.userIds) storage.userIds = [];
 
-const lastStatuses: Record<string, string | undefined> = {};
+let lastStatuses: Record<string, string | undefined> = {};
 
 const getTrackedIds = () => {
   const ids = new Set<string>();
@@ -32,13 +32,15 @@ let unsubMessage: (() => void) | null = null;
 let unsubTyping: (() => void) | null = null;
 
 export const applyTracking = () => {
-  for (const id of getTrackedIds()) {
-    lastStatuses[id] = PresenceStore.getStatus(id);
-  }
-
+  // نلغي كل الاشتراكات القديمة
   unpatchPresence?.();
   unsubMessage?.();
   unsubTyping?.();
+
+  lastStatuses = {};
+  for (const id of getTrackedIds()) {
+    lastStatuses[id] = PresenceStore.getStatus(id);
+  }
 
   unpatchPresence = after("dispatch", FluxDispatcher, ([p]) => {
     if (p?.type !== "PRESENCE_UPDATE") return;
