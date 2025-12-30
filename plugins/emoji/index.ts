@@ -15,9 +15,8 @@ function iterate(rows: ContentRow[]) {
 			header = { type: "heading", level: 1, content: [] };
 		}
 		if (
-			(original.type === "emoji" || original.type === "customEmoji") &&
-			!original.jumboable &&
-			header
+			(original.type === "emoji" || original.type === "customEmoji") && !original.jumboable
+			&& header
 		) {
 			content.push(header);
 			header = undefined;
@@ -31,26 +30,8 @@ function iterate(rows: ContentRow[]) {
 	return content;
 }
 
-let unpatch: (() => void) | null = null;
-
-export default {
-	onLoad() {
-		unpatch = patchRows(rows => {
-			for (const row of rows) {
-				if (row.type === 1) {
-					if (row.message?.content) {
-						row.message.content = iterate(row.message.content);
-					}
-					if (row.message?.referenced_message?.content) {
-						row.message.referenced_message.content =
-							iterate(row.message.referenced_message.content);
-					}
-				}
-			}
-		});
-	},
-	onUnload() {
-		unpatch?.();
+export const onUnload = patchRows(rows => {
+	for (const row of rows) {
+		if (row.type === 1 && row.message.content) row.message.content = iterate(row.message.content);
 	}
-};
-
+});
