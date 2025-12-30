@@ -63,12 +63,9 @@ async function getFreshQuest(id: string) {
 }
 
 async function runTask(q: any, task: string) {
-    const questName = q.config?.messages?.quest_name || "Unknown Quest";
+    const questName = q.config.messages.quest_name;
     const id = q.id;
-    const taskConfig = q.config?.task_config?.tasks[task];
-    if (!taskConfig) return;
-
-    const need = taskConfig.target;
+    const need = q.config.task_config.tasks[task].target;
     let done = q.user_status?.progress?.[task]?.value || 0;
     let lastPrint = 0;
 
@@ -103,8 +100,6 @@ async function runTask(q: any, task: string) {
 
 async function processQuest(initialQuest: any) {
     let q = initialQuest;
-    if (!q || !q.config) return;
-
     if (!q.user_status?.enrolled_at) {
         await apiRequest(`/quests/${q.id}/enroll`, "POST", { location: 11, is_targeted: false, metadata_raw: null });
     }
@@ -113,11 +108,11 @@ async function processQuest(initialQuest: any) {
         q = await getFreshQuest(q.id);
         if (!q || q.user_status?.completed_at) break;
 
-        const tasks = Object.keys(q.config?.task_config?.tasks || {});
+        const tasks = Object.keys(q.config.task_config.tasks);
         const pending = tasks.filter(t => {
-            const taskConf = q.config.task_config.tasks[t];
+            const need = q.config.task_config.tasks[t].target;
             const done = q.user_status?.progress?.[t]?.value || 0;
-            return done < taskConf.target;
+            return done < need;
         });
 
         if (!pending.length) break;
@@ -125,42 +120,37 @@ async function processQuest(initialQuest: any) {
         await runTask(q, pending[0]);
         await sleep(3000);
     }
-
-    if (q && q.config) {
-        addLog("#36e333", `${q.config.messages.quest_name} fully completed`);
-    }
+    addLog("#36e333", `${q.config.messages.quest_name} fully completed`);
 }
 
 async function main() {
     storage.logs = [];
     try {
         const user = await apiRequest("/users/@me");
-        if (user.id) {
-            addLog("#36e333", `Logged ${user.username}#${user.discriminator}`);
+        addLog("#36e333", `Logged ${user.username}#${user.discriminator}`);
+        
+        while (true) {
+            const data = await apiRequest("/quests/@me");
+            const quests = (data.quests || []).filter((q: any) =>
+                !q.user_status?.completed_at &&
+                new Date(q.config.expires_at) > new Date()
+            );
+
+            if (quests.length === 0) break;
+
+            addLog("#faa81a", `Quests remaining: ${quests.length}`);
+            await processQuest(quests[0]);
+            await sleep(3000);
         }
         
-        const data = await apiRequest("/quests/@me");
-        const quests = (data.quests || []).filter((q: any) =>
-            q.config &&
-            !q.user_status?.completed_at &&
-            new Date(q.config.expires_at) > new Date()
-        );
-        
-        addLog("#faa81a", `Quests found: ${quests.length}`);
-        for (const q of quests) {
-            await processQuest(q);
-            await sleep(2000);
-        }
         addLog("#36e333", 'All quests finished');
     } catch (error) {
-        addLog("#ff4747", `Fatal Error: ${error.message}`);
+        addLog("#ff4747", `Error: ${error.message}`);
     }
 }
 
 export default {
-    onLoad() {
-        main();
-    },
+    onLoad() { main(); },
     onUnload() {},
     settings: Settings
 };
