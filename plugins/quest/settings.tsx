@@ -4,60 +4,39 @@ import { useProxy } from "@vendetta/storage";
 
 export default function Settings() {
     useProxy(storage);
-    const logs = storage.logs || [];
 
     return (
-        <RN.SafeAreaView style={{ flex: 1, backgroundColor: "#202225" }}>
-            <RN.View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: "#2f3136" }}>
-                <RN.Text style={{ color: "#fff", fontSize: 20, fontWeight: "bold" }}>
-                    Quest Autocompleter
-                </RN.Text>
-            </RN.View>
-
-            <RN.ScrollView 
-                style={{ flex: 1 }}
-                contentContainerStyle={{ padding: 12, paddingBottom: 100 }}
-            >
-                {logs.length === 0 ? (
-                    <RN.Text style={{ color: "#8e9297", textAlign: "center", marginTop: 20 }}>
-                        No logs yet...
-                    </RN.Text>
-                ) : (
-                    logs.map((log: any, i: number) => (
-                        <RN.View key={i} style={{ marginBottom: 6, flexDirection: "row" }}>
-                            <RN.Text style={{ color: "#72767d", fontSize: 11, width: 80 }}>
-                                [{log.time}]
+        <RN.ScrollView style={{ flex: 1, backgroundColor: "#2f3136", padding: 16 }}>
+            <RN.Text style={{ color: "#fff", fontSize: 20, fontWeight: "bold", marginBottom: 12 }}>
+                Quest Automator Logs
+            </RN.Text>
+            
+            <RN.View style={{ backgroundColor: "#202225", borderRadius: 8, padding: 12, borderLeftWidth: 4, borderLeftColor: "#7289da" }}>
+                {storage.logs && storage.logs.length > 0 ? (
+                    storage.logs.map((log: any, i: number) => (
+                        <RN.View key={i} style={{ marginBottom: 6, flexDirection: "row", flexWrap: "wrap" }}>
+                            <RN.Text style={{ color: "#8e9297", fontSize: 12 }}>
+                                [{log.time}] 
                             </RN.Text>
-                            <RN.Text style={{ color: log.color, fontWeight: "500", flex: 1 }}>
+                            <RN.Text style={{ color: log.color, fontSize: 13, marginLeft: 6, fontWeight: "500" }}>
                                 {log.message}
                             </RN.Text>
                         </RN.View>
                     ))
+                ) : (
+                    <RN.Text style={{ color: "#72767d", italic: true }}>
+                        No activity recorded yet.
+                    </RN.Text>
                 )}
-            </RN.ScrollView>
-
-            <RN.View style={{ 
-                position: 'absolute', 
-                bottom: 0, 
-                left: 0, 
-                right: 0, 
-                backgroundColor: "#202225",
-                padding: 16
-            }}>
-                <RN.TouchableOpacity
-                    onPress={() => { storage.logs = []; }}
-                    style={{
-                        backgroundColor: "#f04747",
-                        padding: 14,
-                        borderRadius: 8,
-                        alignItems: "center",
-                        elevation: 5
-                    }}
-                >
-                    <RN.Text style={{ color: "#fff", fontWeight: "bold" }}>Clear Logs</RN.Text>
-                </RN.TouchableOpacity>
             </RN.View>
-        </RN.SafeAreaView>
+
+            <RN.TouchableOpacity 
+                onPress={() => { storage.logs = []; }}
+                style={{ marginTop: 20, backgroundColor: "#4e5d94", padding: 14, borderRadius: 8, alignItems: "center" }}
+            >
+                <RN.Text style={{ color: "#fff", fontWeight: "bold" }}>Clear Logs</RN.Text>
+            </RN.TouchableOpacity>
+        </RN.ScrollView>
     );
 }
 
