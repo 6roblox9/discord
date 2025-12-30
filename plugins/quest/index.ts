@@ -31,60 +31,68 @@ let unpatchPresence: (() => void) | null = null;
 let unsubMessage: (() => void) | null = null;
 let unsubTyping: (() => void) | null = null;
 
+const setupTracking = () => {
+  for (const id of getTrackedIds()) {
+    lastStatuses[id] = PresenceStore.getStatus(id);
+  }
+
+  unpatchPresence?.();
+  unsubMessage?.();
+  unsubTyping?.();
+
+  unpatchPresence = after("dispatch", FluxDispatcher, ([p]) => {
+    if (p?.type !== "PRESENCE_UPDATE") return;
+    const id = p.user?.id;
+    if (!getTrackedIds().includes(id)) return;
+    if (lastStatuses[id] !== p.status) {
+      lastStatuses[id] = p.status;
+      showToast(`${getName(id)} is now ${p.status}`);
+    }
+  });
+
+  const onMessage = (p: any) => {
+    const m = p?.message;
+    const id = m?.author?.id;
+    if (!getTrackedIds().includes(id)) return;
+    const c = ChannelStore.getChannel(m.channel_id);
+    if (!c) return;
+
+    if (c.guild_id) {
+      const g = GuildStore.getGuild(c.guild_id);
+      showToast(`${getName(id)} messaged in ${g?.name} #${c.name}`);
+    } else if (c.type === 3) {
+      showToast(`${getName(id)} messaged in group`);
+    } else {
+      showToast(`${getName(id)} messaged in DM`);
+    }
+  };
+
+  const onTyping = (p: any) => {
+    const id = p?.userId;
+    if (!getTrackedIds().includes(id)) return;
+    const c = ChannelStore.getChannel(p.channelId);
+    if (!c) return;
+
+    if (c.guild_id) {
+      const g = GuildStore.getGuild(c.guild_id);
+      showToast(`${getName(id)} typing in ${g?.name} #${c.name}`);
+    } else if (c.type === 3) {
+      showToast(`${getName(id)} typing in group`);
+    } else {
+      showToast(`${getName(id)} typing in DM`);
+    }
+  };
+
+  FluxDispatcher.subscribe("MESSAGE_CREATE", onMessage);
+  FluxDispatcher.subscribe("TYPING_START", onTyping);
+
+  unsubMessage = () => FluxDispatcher.unsubscribe("MESSAGE_CREATE", onMessage);
+  unsubTyping = () => FluxDispatcher.unsubscribe("TYPING_START", onTyping);
+};
+
 export default {
   onLoad() {
-    for (const id of getTrackedIds()) {
-      lastStatuses[id] = PresenceStore.getStatus(id);
-    }
-
-    unpatchPresence = after("dispatch", FluxDispatcher, ([p]) => {
-      if (p?.type !== "PRESENCE_UPDATE") return;
-      const id = p.user?.id;
-      if (!getTrackedIds().includes(id)) return;
-      if (lastStatuses[id] !== p.status) {
-        lastStatuses[id] = p.status;
-        showToast(`${getName(id)} is now ${p.status}`);
-      }
-    });
-
-    const onMessage = (p: any) => {
-      const m = p?.message;
-      const id = m?.author?.id;
-      if (!getTrackedIds().includes(id)) return;
-      const c = ChannelStore.getChannel(m.channel_id);
-      if (!c) return;
-
-      if (c.guild_id) {
-        const g = GuildStore.getGuild(c.guild_id);
-        showToast(`${getName(id)} messaged in ${g?.name} #${c.name}`);
-      } else if (c.type === 3) {
-        showToast(`${getName(id)} messaged in group`);
-      } else {
-        showToast(`${getName(id)} messaged in DM`);
-      }
-    };
-
-    const onTyping = (p: any) => {
-      const id = p?.userId;
-      if (!getTrackedIds().includes(id)) return;
-      const c = ChannelStore.getChannel(p.channelId);
-      if (!c) return;
-
-      if (c.guild_id) {
-        const g = GuildStore.getGuild(c.guild_id);
-        showToast(`${getName(id)} typing in ${g?.name} #${c.name}`);
-      } else if (c.type === 3) {
-        showToast(`${getName(id)} typing in group`);
-      } else {
-        showToast(`${getName(id)} typing in DM`);
-      }
-    };
-
-    FluxDispatcher.subscribe("MESSAGE_CREATE", onMessage);
-    FluxDispatcher.subscribe("TYPING_START", onTyping);
-
-    unsubMessage = () => FluxDispatcher.unsubscribe("MESSAGE_CREATE", onMessage);
-    unsubTyping = () => FluxDispatcher.unsubscribe("TYPING_START", onTyping);
+    setupTracking();
   },
 
   onUnload() {
@@ -93,6 +101,9 @@ export default {
     unsubTyping?.();
   },
 
-  settings: Settings,
+  settings: {
+    ...Settings,
+    applyCallback: setupTracking
+  },
 };
 
