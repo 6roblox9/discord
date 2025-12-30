@@ -1,170 +1,78 @@
 import { findByProps } from "@vendetta/metro";
+import { after } from "@vendetta/patcher";
+import { showToast } from "@vendetta/ui/toasts";
 import { storage } from "@vendetta/plugin";
-import Settings from "./settings";
+import Settings from "./Settings";
 
-const getToken = findByProps("getToken").getToken;
+const FluxDispatcher = findByProps("dispatch", "subscribe");
+const PresenceStore = findByProps("getStatus");
+const RelationshipStore = findByProps("getFriendIDs");
+const ChannelStore = findByProps("getChannel");
+const GuildStore = findByProps("getGuild");
 
-function uuid() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
+const lastStatuses: Record<string, string | undefined> = {};
 
-const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9215 Chrome/138.0.7204.251 Electron/37.6.0 Safari/537.36';
-
-function getProps() {
-  const props = {
-    os: 'Windows',
-    browser: 'Discord Client',
-    release_channel: 'stable',
-    client_version: '1.0.9215',
-    os_version: '10.0.19045',
-    os_arch: 'x64',
-    app_arch: 'x64',
-    system_locale: 'en-US',
-    has_client_mods: false,
-    client_launch_id: uuid(),
-    browser_user_agent: USER_AGENT,
-    browser_version: '37.6.0',
-    os_sdk_version: '19045',
-    client_build_number: 471091,
-    native_build_number: 72186,
-    client_event_source: null,
-    launch_signature: uuid(),
-    client_heartbeat_session_id: uuid(),
-    client_app_state: 'focused'
-  };
-  return btoa(JSON.stringify(props));
-}
-
-const encodedProps = getProps();
-
-function log(color: string, message: string) {
-  const time = new Date().toLocaleTimeString();
-  storage.logs = [...(storage.logs || []), { time, message, color }].slice(-50);
-}
-
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-async function retry(fn: any, n = 5) {
-  for (let i = 0; i < n; i++) {
-    try {
-      const res = await fn();
-      return res;
-    } catch {
-      await sleep(3000);
-    }
+const getTrackedIds = () => {
+  const ids = new Set<string>();
+  if (storage.trackFriends) {
+    for (const id of RelationshipStore.getFriendIDs()) ids.add(id);
   }
-}
+  for (const id of storage.userIds ?? []) ids.add(id);
+  return [...ids];
+};
 
-async function request(url: string, method = "GET", body?: any) {
-  return await retry(async () => {
-    const response = await fetch(url, {
-      method,
-      headers: {
-        "Authorization": getToken(),
-        "User-Agent": USER_AGENT,
-        "x-super-properties": encodedProps,
-        "Content-Type": "application/json"
-      },
-      body: body ? JSON.stringify(body) : undefined
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.json();
-  });
-}
-
-async function runTask(q: any, task: string) {
-  const questName = q.config.messages.quest_name;
-  const need = q.config.task_config.tasks[task].target;
-  let done = q.user_status?.progress?.[task]?.value || 0;
-
-  log('#ffff33', `${questName} type: ${task}`);
-
-  if (task.includes('WATCH_VIDEO')) {
-    while (done < need) {
-      const r = await request(`https://discord.com/api/v10/quests/${q.id}/video-progress`, 'POST', {
-        timestamp: Math.min(need, done + 7 + Math.random())
-      });
-      done += 7;
-      log('#00ffff', `${questName} ${Math.min(done, need)}/${need}`);
-      if (r?.completed_at) break;
-      await sleep(2000);
-    }
-  } else {
-    while (true) {
-      const r = await request(`https://discord.com/api/v10/quests/${q.id}/heartbeat`, 'POST', {
-        application_id: q.config.application.id,
-        terminal: false
-      });
-      
-      if (r && r.progress && r.progress[task]) {
-        done = r.progress[task].value;
-      }
-      
-      log('#00ffff', `${questName} ${done}/${need}`);
-      
-      if (r?.completed_at || done >= need) break;
-      await sleep(30000);
-    }
-    await request(`https://discord.com/api/v10/quests/${q.id}/heartbeat`, 'POST', {
-      application_id: q.config.application.id,
-      terminal: true
-    });
-  }
-  log('#43b581', `${questName} ${task} completed`);
-}
-
-async function processQuest(initialQuest: any) {
-  let q = initialQuest;
-  if (!q.user_status?.enrolled_at) {
-    await request(`https://discord.com/api/v10/quests/${q.id}/enroll`, 'POST', { location: 11, is_targeted: false, metadata_raw: null });
-  }
-
-  while (true) {
-    const data = await request('https://discord.com/api/v10/quests/@me');
-    q = data.quests.find((x: any) => x.id === q.id);
-    if (!q || q.user_status?.completed_at) break;
-
-    const tasks = Object.keys(q.config.task_config.tasks);
-    const pending = tasks.filter(t => {
-      const target = q.config.task_config.tasks[t].target;
-      const current = q.user_status?.progress?.[t]?.value || 0;
-      return current < target;
-    });
-
-    if (!pending.length) break;
-    await runTask(q, pending[0]);
-    await sleep(3000);
-  }
-}
-
-async function startAutomator() {
-  try {
-    const user = await request('https://discord.com/api/v10/users/@me');
-    log('#43b581', `Logged ${user.username}`);
-
-    const data = await request('https://discord.com/api/v10/quests/@me');
-    const quests = (data.quests || []).filter((q: any) =>
-      !q.user_status?.completed_at && new Date(q.config.expires_at) > new Date()
-    );
-
-    log('#ffff33', `Quests ${quests.length}`);
-    for (const q of quests) await processQuest(q);
-    log('#43b581', 'All quests finished');
-  } catch (e) {
-    log('#f04747', `Error: ${e.message}`);
-  }
-}
+let unpatchPresence: (() => void) | null = null;
+let unsubMessage: (() => void) | null = null;
+let unsubTyping: (() => void) | null = null;
 
 export default {
   onLoad() {
-    storage.logs = [];
-    startAutomator();
+    for (const id of getTrackedIds()) {
+      lastStatuses[id] = PresenceStore.getStatus(id);
+    }
+
+    unpatchPresence = after("dispatch", FluxDispatcher, ([payload]) => {
+      if (payload?.type !== "PRESENCE_UPDATE") return;
+      const id = payload.user?.id;
+      if (!getTrackedIds().includes(id)) return;
+      if (lastStatuses[id] !== payload.status) {
+        lastStatuses[id] = payload.status;
+        showToast(`user ${id} is now ${payload.status}`);
+      }
+    });
+
+    const onMessage = (payload: any) => {
+      const id = payload?.message?.author?.id;
+      if (!getTrackedIds().includes(id)) return;
+      showToast(`user ${id} sent a message`);
+    };
+
+    const onTyping = (payload: any) => {
+      const id = payload?.userId;
+      if (!getTrackedIds().includes(id)) return;
+      const channel = ChannelStore.getChannel(payload.channelId);
+      if (!channel) return;
+      if (channel.guild_id) {
+        const guild = GuildStore.getGuild(channel.guild_id);
+        showToast(`user ${id} typing in ${guild?.name ?? "server"}`);
+      } else {
+        showToast(`user ${id} typing in DM`);
+      }
+    };
+
+    FluxDispatcher.subscribe("MESSAGE_CREATE", onMessage);
+    FluxDispatcher.subscribe("TYPING_START", onTyping);
+
+    unsubMessage = () => FluxDispatcher.unsubscribe("MESSAGE_CREATE", onMessage);
+    unsubTyping = () => FluxDispatcher.unsubscribe("TYPING_START", onTyping);
   },
-  onUnload() {},
-  settings: Settings
+
+  onUnload() {
+    unpatchPresence?.();
+    unsubMessage?.();
+    unsubTyping?.();
+  },
+
+  settings: Settings,
 };
 
