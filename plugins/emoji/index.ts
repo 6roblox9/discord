@@ -3,9 +3,22 @@ import { findByProps } from "@vendetta/metro";
 import { showToast } from "@vendetta/ui/toasts";
 import Settings from "./settings";
 
-const api = findByProps("getAPIBaseURL");
+const APIUtils = findByProps("getAPIBaseURL", "get", "post", "del");
 
-function applyHouse(args: any) {
+function request(method: "POST" | "DELETE", body?: any) {
+  if (method === "POST") {
+    return APIUtils.post({
+      url: "/hypesquad/online",
+      body
+    });
+  }
+
+  return APIUtils.del({
+    url: "/hypesquad/online"
+  });
+}
+
+async function applyHouse(args: any) {
   const raw =
     args?.type ??
     args?.[0]?.value ??
@@ -19,26 +32,25 @@ function applyHouse(args: any) {
     return;
   }
 
-  if (value === 0) {
-    api.delete({ url: "/hypesquad/online" })
-      .then(() => showToast("HypeSquad removed"))
-      .catch(() => showToast("Request failed"));
-    return;
-  }
+  try {
+    if (value === 0) {
+      await request("DELETE");
+      showToast("HypeSquad removed");
+      return;
+    }
 
-  api.post({
-    url: "/hypesquad/online",
-    body: { house_id: value }
-  })
-    .then(() => {
-      const names: Record<number, string> = {
-        1: "Bravery",
-        2: "Brilliance",
-        3: "Balance"
-      };
-      showToast(`HypeSquad set to ${names[value]}`);
-    })
-    .catch(() => showToast("Request failed"));
+    await request("POST", { house_id: value });
+
+    const names: Record<number, string> = {
+      1: "Bravery",
+      2: "Brilliance",
+      3: "Balance"
+    };
+
+    showToast(`HypeSquad set to ${names[value]}`);
+  } catch {
+    showToast("Request failed");
+  }
 }
 
 export const loadCommands = () => {
