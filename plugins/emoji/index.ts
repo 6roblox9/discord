@@ -3,20 +3,7 @@ import { findByProps } from "@vendetta/metro";
 import { showToast } from "@vendetta/ui/toasts";
 import Settings from "./settings";
 
-const api = findByProps("get", "post", "put", "delete");
-
-function requestPost(body: any) {
-  api.post({
-    url: "/hypesquad/online",
-    body
-  }).catch(() => showToast("Request failed"));
-}
-
-function requestDelete() {
-  api.delete({
-    url: "/hypesquad/online"
-  }).catch(() => showToast("Request failed"));
-}
+const api = findByProps("getAPIBaseURL");
 
 function applyHouse(args: any) {
   const raw =
@@ -33,20 +20,25 @@ function applyHouse(args: any) {
   }
 
   if (value === 0) {
-    requestDelete();
-    showToast("HypeSquad removed");
+    api.delete({ url: "/hypesquad/online" })
+      .then(() => showToast("HypeSquad removed"))
+      .catch(() => showToast("Request failed"));
     return;
   }
 
-  requestPost({ house_id: value });
-
-  const names: Record<number, string> = {
-    1: "Bravery",
-    2: "Brilliance",
-    3: "Balance"
-  };
-
-  showToast(`HypeSquad set to ${names[value]}`);
+  api.post({
+    url: "/hypesquad/online",
+    body: { house_id: value }
+  })
+    .then(() => {
+      const names: Record<number, string> = {
+        1: "Bravery",
+        2: "Brilliance",
+        3: "Balance"
+      };
+      showToast(`HypeSquad set to ${names[value]}`);
+    })
+    .catch(() => showToast("Request failed"));
 }
 
 export const loadCommands = () => {
@@ -76,3 +68,4 @@ export default {
   },
   settings: Settings
 };
+
