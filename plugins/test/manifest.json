@@ -1,0 +1,14 @@
+{
+  "name": "wtf",
+  "description": "wlwlwl",
+  "authors": [
+    {
+      "name": "diddy",
+      "id": "69"
+    }
+  ],
+  "main": "src/index.ts",
+  "vendetta": {
+    "icon": "ic_person_status"
+  }
+}
