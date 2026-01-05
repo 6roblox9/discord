@@ -10,22 +10,19 @@ const RelationshipStore = findByProps("getFriendIDs");
 const ChannelStore = findByProps("getChannel");
 const GuildStore = findByProps("getGuild");
 const UserStore = findByProps("getUser");
-const VoiceStateStore = findByProps("getVoiceStateForUser");
 
-storage.trackFriends ??= true;
-storage.userIds ??= [];
-
-storage.trackMessages ??= true;
-storage.trackTyping ??= true;
-storage.trackProfile ??= true;
-storage.trackVoice ??= true;
-
-storage.watchDM ??= true;
-storage.watchGroup ??= true;
-storage.watchServers ??= true;
+if (storage.trackFriends === undefined) storage.trackFriends = true;
+if (!storage.userIds) storage.userIds = [];
+if (storage.trackMessages === undefined) storage.trackMessages = true;
+if (storage.trackTyping === undefined) storage.trackTyping = true;
+if (storage.trackVoice === undefined) storage.trackVoice = true;
+if (storage.trackProfile === undefined) storage.trackProfile = true;
+if (storage.trackDM === undefined) storage.trackDM = true;
+if (storage.trackGroupDM === undefined) storage.trackGroupDM = true;
+if (storage.trackServers === undefined) storage.trackServers = true;
 
 const lastStatuses: Record<string, string | undefined> = {};
-const lastVoices: Record<string, string | null> = {};
+const lastProfile: Record<string, any> = {};
 
 const getTrackedIds = () => {
   const ids = new Set<string>();
@@ -38,80 +35,127 @@ const getTrackedIds = () => {
 
 const getName = (id: string) => UserStore.getUser(id)?.username ?? id;
 
-const channelAllowed = (c: any) => {
-  if (!c) return false;
-  if (c.guild_id) return storage.watchServers;
-  if (c.type === 3) return storage.watchGroup;
-  return storage.watchDM;
+const shouldNotifyChannel = (channel: any) => {
+  if (channel.guild_id) return storage.trackServers;
+  if (channel.type === 3) return storage.trackGroupDM;
+  return storage.trackDM;
 };
 
-let unpatch: (() => void) | null = null;
+let unpatchPresence: (() => void) | null = null;
+let unpatchProfile: (() => void) | null = null;
+let unsubMessage: (() => void) | null = null;
+let unsubTyping: (() => void) | null = null;
+let unsubVoice: (() => void) | null = null;
 
 export default {
   onLoad() {
     for (const id of getTrackedIds()) {
       lastStatuses[id] = PresenceStore.getStatus(id);
-      lastVoices[id] = VoiceStateStore.getVoiceStateForUser?.(id)?.channelId ?? null;
+      const user = UserStore.getUser(id);
+      if (user) lastProfile[id] = { username: user.username, avatar: user.avatar };
     }
 
-    unpatch = after("dispatch", FluxDispatcher, ([p]) => {
-      if (p?.type === "PRESENCE_UPDATE" && storage.trackProfile) {
+    if (storage.trackProfile) {
+      unpatchProfile = after("dispatch", FluxDispatcher, ([p]) => {
+        if (p?.type !== "USER_UPDATE") return;
+        const id = p.user?.id;
+        if (!getTrackedIds().includes(id)) return;
+        const old = lastProfile[id];
+        const current = { username: p.user.username, avatar: p.user.avatar };
+        if (old && (old.username !== current.username || old.avatar !== current.avatar)) {
+          showToast(`${getName(id)} updated their profile`);
+        }
+        lastProfile[id] = current;
+      });
+    }
+
+    if (storage.trackProfile) {
+      unpatchPresence = after("dispatch", FluxDispatcher, ([p]) => {
+        if (p?.type !== "PRESENCE_UPDATE") return;
         const id = p.user?.id;
         if (!getTrackedIds().includes(id)) return;
         if (lastStatuses[id] !== p.status) {
           lastStatuses[id] = p.status;
           showToast(`${getName(id)} is now ${p.status}`);
         }
-      }
+      });
+    }
 
-      if (p?.type === "VOICE_STATE_UPDATES" && storage.trackVoice) {
-        for (const state of p.voiceStates ?? []) {
-          const id = state.userId;
-          if (!getTrackedIds().includes(id)) continue;
-          const prev = lastVoices[id];
-          const now = state.channelId ?? null;
-          if (!prev && now) {
-            const c = ChannelStore.getChannel(now);
-            if (!channelAllowed(c)) continue;
-            if (c.guild_id) {
-              const g = GuildStore.getGuild(c.guild_id);
-              showToast(`${getName(id)} joined voice in ${g?.name}`);
-            } else {
-              showToast(`${getName(id)} joined voice call`);
-            }
-          }
-          lastVoices[id] = now;
-        }
-      }
-    });
-
-    FluxDispatcher.subscribe("MESSAGE_CREATE", p => {
+    const onMessage = (p: any) => {
       if (!storage.trackMessages) return;
       const m = p?.message;
       const id = m?.author?.id;
       if (!getTrackedIds().includes(id)) return;
       const c = ChannelStore.getChannel(m.channel_id);
-      if (!channelAllowed(c)) return;
+      if (!c || !shouldNotifyChannel(c)) return;
 
+      let location = "";
       if (c.guild_id) {
         const g = GuildStore.getGuild(c.guild_id);
-        showToast(`${getName(id)} messaged in ${g?.name} #${c.name}`);
+        location = `${g?.name} #${c.name}`;
       } else if (c.type === 3) {
-        showToast(`${getName(id)} messaged in group`);
+        location = "group";
       } else {
-        showToast(`${getName(id)} messaged in DM`);
+        location = "DM";
       }
-    });
+      showToast(`${getName(id)} messaged in ${location}`);
+    };
 
-    FluxDispatcher.subscribe("TYPING_START", p => {
+    const onTyping = (p: any) => {
       if (!storage.trackTyping) return;
       const id = p?.userId;
       if (!getTrackedIds().includes(id)) return;
       const c = ChannelStore.getChannel(p.channelId);
-      if (!channelAllowed(c)) return;
+      if (!c || !shouldNotifyChannel(c)) return;
 
+      let location = "";
       if (c.guild_id) {
         const g = GuildStore.getGuild(c.guild_id);
-        showToast(`${getName(id)} typing in ${g?.name} #${c.name}`);
-      } else if
+        location = `${g?.name} #${c.name}`;
+      } else if (c.type === 3) {
+        location = "group";
+      } else {
+        location = "DM";
+      }
+      showToast(`${getName(id)} typing in ${location}`);
+    };
 
+    const onVoice = (p: any) => {
+      if (!storage.trackVoice) return;
+      if (p.type !== "VOICE_STATE_UPDATE") return;
+      const id = p.userId;
+      if (!getTrackedIds().includes(id)) return;
+      const c = ChannelStore.getChannel(p.channelId);
+      if (!c || !shouldNotifyChannel(c)) return;
+
+      let location = "";
+      if (c.guild_id) {
+        const g = GuildStore.getGuild(c.guild_id);
+        location = `${g?.name} #${c.name}`;
+      } else if (c.type === 3) {
+        location = "group";
+      } else {
+        location = "DM";
+      }
+      showToast(`${getName(id)} joined voice in ${location}`);
+    };
+
+    FluxDispatcher.subscribe("MESSAGE_CREATE", onMessage);
+    FluxDispatcher.subscribe("TYPING_START", onTyping);
+    FluxDispatcher.subscribe("VOICE_STATE_UPDATE", onVoice);
+
+    unsubMessage = () => FluxDispatcher.unsubscribe("MESSAGE_CREATE", onMessage);
+    unsubTyping = () => FluxDispatcher.unsubscribe("TYPING_START", onTyping);
+    unsubVoice = () => FluxDispatcher.unsubscribe("VOICE_STATE_UPDATE", onVoice);
+  },
+
+  onUnload() {
+    unpatchPresence?.();
+    unpatchProfile?.();
+    unsubMessage?.();
+    unsubTyping?.();
+    unsubVoice?.();
+  },
+
+  settings: Settings,
+};
