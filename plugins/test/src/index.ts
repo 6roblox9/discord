@@ -36,7 +36,7 @@ const getTrackedIds = () => {
   return [...ids];
 };
 
-const getName = (id: string) => UserStore.getlegateUser?.(id)?.username ?? UserStore.getUser(id)?.username ?? id;
+const getName = (id: string) => UserStore.getUser(id)?.username ?? id;
 
 const channelAllowed = (c: any) => {
   if (!c) return false;
@@ -45,8 +45,7 @@ const channelAllowed = (c: any) => {
   return storage.watchDM;
 };
 
-let unpatchPresence: (() => void) | null = null;
-let unpatchVoice: (() => void) | null = null;
+let unpatch: (() => void) | null = null;
 
 export default {
   onLoad() {
@@ -55,7 +54,7 @@ export default {
       lastVoices[id] = VoiceStateStore.getVoiceStateForUser?.(id)?.channelId ?? null;
     }
 
-    unpatchPresence = after("dispatch", FluxDispatcher, ([p]) => {
+    unpatch = after("dispatch", FluxDispatcher, ([p]) => {
       if (p?.type === "PRESENCE_UPDATE" && storage.trackProfile) {
         const id = p.user?.id;
         if (!getTrackedIds().includes(id)) return;
@@ -86,7 +85,7 @@ export default {
       }
     });
 
-    const onMessage = (p: any) => {
+    FluxDispatcher.subscribe("MESSAGE_CREATE", p => {
       if (!storage.trackMessages) return;
       const m = p?.message;
       const id = m?.author?.id;
@@ -102,9 +101,9 @@ export default {
       } else {
         showToast(`${getName(id)} messaged in DM`);
       }
-    };
+    });
 
-    const onTyping = (p: any) => {
+    FluxDispatcher.subscribe("TYPING_START", p => {
       if (!storage.trackTyping) return;
       const id = p?.userId;
       if (!getTrackedIds().includes(id)) return;
@@ -114,23 +113,5 @@ export default {
       if (c.guild_id) {
         const g = GuildStore.getGuild(c.guild_id);
         showToast(`${getName(id)} typing in ${g?.name} #${c.name}`);
-      } else if (c.type === 3) {
-        showToast(`${getName(id)} typing in group`);
-      } else {
-        showToast(`${getName(id)} typing in DM`);
-      }
-    };
+      } else if
 
-    FluxDispatcher.subscribe("MESSAGE_CREATE", onMessage);
-    FluxDispatcher.subscribe("TYPING_START", onTyping);
-
-    unpatchVoice = () => {};
-  },
-
-  onUnload() {
-    unpatchPresence?.();
-    unpatchVoice?.();
-  },
-
-  settings: Settings,
-};
