@@ -8,18 +8,22 @@ const GatewayConnectionSocket = findByProps("voiceStateUpdate", "voiceServerPing
 let unpatch: () => void;
 
 export default {
-    onLoad: () => {
-        if (GatewayConnectionSocket?.prototype) {
-            unpatch = before("voiceStateUpdate", GatewayConnectionSocket.prototype, (args) => {
-                const voiceStateUpdateArgs = args[0];
-                if (storage.fakeMute) voiceStateUpdateArgs.selfMute = true;
-                if (storage.fakeDeaf) voiceStateUpdateArgs.selfDeaf = true;
-                if (storage.fakeVideo) voiceStateUpdateArgs.selfVideo = true;
-            });
-        }
+    onLoad() {
+        if (!GatewayConnectionSocket?.prototype) return;
+
+        unpatch = before(
+            "voiceStateUpdate",
+            GatewayConnectionSocket.prototype,
+            (args) => {
+                const data = args[0];
+                if (storage.fakeMute) data.selfMute = true;
+                if (storage.fakeDeaf) data.selfDeaf = true;
+                if (storage.fakeVideo) data.selfVideo = true;
+            }
+        );
     },
-    onUnload: () => {
+    onUnload() {
         unpatch?.();
     },
-    settings: Settings,
+    settings: Settings
 };
