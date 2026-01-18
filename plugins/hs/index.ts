@@ -3,7 +3,7 @@ import { storage } from "@vendetta/plugin";
 import { before } from "@vendetta/patcher";
 import Settings from "./settings";
 
-const GatewayConnectionSocket = findByProps("voiceStateUpdate", "voiceServerPing");
+const GatewayConnectionSocket = findByProps("send", "handlePacket");
 
 let unpatch: () => void;
 
@@ -12,13 +12,15 @@ export default {
         if (!GatewayConnectionSocket?.prototype) return;
 
         unpatch = before(
-            "voiceStateUpdate",
+            "send",
             GatewayConnectionSocket.prototype,
             (args) => {
-                const data = args[0];
-                if (storage.fakeMute) data.selfMute = true;
-                if (storage.fakeDeaf) data.selfDeaf = true;
-                if (storage.fakeVideo) data.selfVideo = true;
+                const packet = args[0];
+                if (!packet || packet.op !== 4 || !packet.d) return;
+
+                if (storage.fakeMute) packet.d.self_mute = true;
+                if (storage.fakeDeaf) packet.d.self_deaf = true;
+                if (storage.fakeVideo) packet.d.self_video = true;
             }
         );
     },
