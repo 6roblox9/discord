@@ -1,34 +1,42 @@
-import { React, ReactNative as RN } from "@vendetta/metro/common";
+import { React } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
 import { useProxy } from "@vendetta/storage";
-import { FormSwitchRow } from "@vendetta/ui/components";
-
 import { findByProps } from "@vendetta/metro";
-const { ScrollView } = findByProps("ScrollView");
 
-export default () => {
+const { ScrollView } = findByProps("ScrollView");
+const { TableSwitchRow, TableRowGroup, Stack } = findByProps(
+    "TableSwitchRow",
+    "TableRowGroup",
+    "Stack"
+);
+
+export default function Settings() {
     useProxy(storage);
 
     return (
-        <ScrollView>
-            <FormSwitchRow
-                label="Fake Mute"
-                subLabel="Show others you are muted, but you can still talk."
-                value={storage.fakeMute ?? false}
-                onValueChange={(v) => storage.fakeMute = v}
-            />
-            <FormSwitchRow
-                label="Fake Deafened"
-                subLabel="Show others you are deafened, but you can still hear."
-                value={storage.fakeDeaf ?? false}
-                onValueChange={(v) => storage.fakeDeaf = v}
-            />
-            <FormSwitchRow
-                label="Fake Video Off"
-                subLabel="Show others your video is off, but you can still stream."
-                value={storage.fakeVideo ?? false}
-                onValueChange={(v) => storage.fakeVideo = v}
-            />
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 10 }}>
+            <Stack spacing={8}>
+                <TableRowGroup title="Fake Voice States">
+                    <TableSwitchRow
+                        label="Fake Mute"
+                        subLabel="Others see you muted while you can still talk"
+                        value={storage.fakeMute ?? false}
+                        onValueChange={(v: boolean) => storage.fakeMute = v}
+                    />
+                    <TableSwitchRow
+                        label="Fake Deafened"
+                        subLabel="Others see you deafened while you still hear"
+                        value={storage.fakeDeaf ?? false}
+                        onValueChange={(v: boolean) => storage.fakeDeaf = v}
+                    />
+                    <TableSwitchRow
+                        label="Fake Video Off"
+                        subLabel="Others see your camera off while you still stream"
+                        value={storage.fakeVideo ?? false}
+                        onValueChange={(v: boolean) => storage.fakeVideo = v}
+                    />
+                </TableRowGroup>
+            </Stack>
         </ScrollView>
     );
-};
+}
