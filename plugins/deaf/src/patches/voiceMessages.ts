@@ -3,7 +3,7 @@ import { before } from "@vendetta/patcher";
 import { storage } from "@vendetta/plugin";
 
 function fakeWaveform(duration: number) {
-    const points = Math.min(120, Math.floor(duration * 2));
+    const points = Math.min(120, Math.max(10, Math.floor(duration * 2)));
     const arr = Array.from({ length: points }, () =>
         Math.floor(Math.random() * 255)
     );
@@ -12,9 +12,10 @@ function fakeWaveform(duration: number) {
 
 function transform(item: any) {
     if (item?.mimeType?.startsWith("audio")) {
+        const duration = item.durationSecs ?? item?.metadata?.duration ?? 60;
         item.mimeType = "audio/ogg";
-        item.waveform = fakeWaveform(60.0);
-        item.durationSecs = 60.0;
+        item.durationSecs = duration;
+        item.waveform = fakeWaveform(duration);
     }
 }
 
