@@ -4,7 +4,6 @@ import { showToast } from "@vendetta/ui/toasts";
 
 const UserStore = findByProps("getCurrentUser");
 const APIUtils = findByProps("getAPIBaseURL", "patch", "post");
-const upload = findByProps("uploadFile");
 
 function getArg(args, name) {
   return args.find(a => a.name === name)?.value;
@@ -21,15 +20,6 @@ async function fetchJSON(url) {
   const r = await fetch(url);
   if (!r.ok) throw new Error("Failed to fetch JSON");
   return await r.json();
-}
-
-async function sendJSON(channelId, data) {
-  const file = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  await upload.upload({
-    channelId,
-    file,
-    filename: "profile.json"
-  });
 }
 
 async function applyProfile(data) {
@@ -78,7 +68,10 @@ export default {
 
           if (action === "save" && !link) {
             const data = getProfile();
-            await sendJSON(ctx.channel.id, data);
+            await sendMessage(
+              ctx.channel.id,
+              "```json\n" + JSON.stringify(data, null, 2) + "\n```"
+            );
             showToast("Profile saved");
             return;
           }
@@ -92,7 +85,10 @@ export default {
 
           if (action === "save" && link) {
             const data = await fetchJSON(link);
-            await sendJSON(ctx.channel.id, data);
+            await sendMessage(
+              ctx.channel.id,
+              "```json\n" + JSON.stringify(data, null, 2) + "\n```"
+            );
             showToast("JSON sent");
             return;
           }
