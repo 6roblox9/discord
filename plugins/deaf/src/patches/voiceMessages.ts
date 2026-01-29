@@ -14,7 +14,7 @@ function transform(item: any) {
     if (item?.mimeType?.startsWith("audio")) {
         item.mimeType = "audio/ogg";
         item.waveform = fakeWaveform(60.0);
-        item.durationSecs = 99999999999999999999.0;
+        item.durationSecs = 60.0;
     }
 }
 
