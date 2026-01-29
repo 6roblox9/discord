@@ -2,8 +2,7 @@ import { registerCommand, unregisterAllCommands } from "@vendetta/commands";
 import { findByProps } from "@vendetta/metro";
 import { showToast } from "@vendetta/ui/toasts";
 
-const UserStore = findByProps("getCurrentUser");
-const APIUtils = findByProps("getAPIBaseURL", "patch", "post");
+const APIUtils = findByProps("getAPIBaseURL", "patch", "post", "get");
 
 function getArg(args, name) {
   return args.find(a => a.name === name)?.value;
@@ -22,34 +21,36 @@ async function fetchJSON(url) {
   return await r.json();
 }
 
+async function getProfile() {
+  const profile = await APIUtils.get({ url: "/users/@me/profile" });
+  return {
+    username: profile.user.username,
+    global_name: profile.user.global_name,
+    bio: profile.bio,
+    pronouns: profile.pronouns,
+    accent_color: profile.accent_color,
+    theme_colors: profile.theme_colors
+  };
+}
+
 async function applyProfile(data) {
   await APIUtils.patch({
     url: "/users/@me",
     body: {
       username: data.username,
-      global_name: data.global_name,
-      bio: data.bio,
-      pronouns: data.pronouns
+      global_name: data.global_name
     }
   });
-  if ("avatar" in data) {
-    await APIUtils.patch({ url: "/users/@me", body: { avatar: data.avatar } });
-  }
-  if ("banner" in data) {
-    await APIUtils.patch({ url: "/users/@me", body: { banner: data.banner } });
-  }
-}
 
-function getProfile() {
-  const u = UserStore.getCurrentUser();
-  return {
-    username: u.username,
-    global_name: u.globalName,
-    bio: u.bio,
-    pronouns: u.pronouns,
-    avatar: u.avatar,
-    banner: u.banner
-  };
+  await APIUtils.patch({
+    url: "/users/@me/profile",
+    body: {
+      bio: data.bio ?? "",
+      pronouns: data.pronouns ?? "",
+      accent_color: data.accent_color ?? null,
+      theme_colors: data.theme_colors ?? null
+    }
+  });
 }
 
 export default {
@@ -67,7 +68,7 @@ export default {
           const link = getArg(args, "link");
 
           if (action === "save" && !link) {
-            const data = getProfile();
+            const data = await getProfile();
             await sendMessage(
               ctx.channel.id,
               "```json\n" + JSON.stringify(data, null, 2) + "\n```"
@@ -94,7 +95,6 @@ export default {
           }
 
           throw new Error("Invalid arguments");
-
         } catch (e) {
           await sendMessage(ctx.channel.id, `❌ Error: ${e.message}`);
           showToast("Profile error");
