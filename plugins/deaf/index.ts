@@ -6,6 +6,10 @@ const UserStore = findByProps("getCurrentUser");
 const APIUtils = findByProps("getAPIBaseURL", "patch", "post");
 const upload = findByProps("uploadFile");
 
+function getArg(args, name) {
+  return args.find(a => a.name === name)?.value;
+}
+
 async function sendMessage(channelId, content) {
   await APIUtils.post({
     url: `/channels/${channelId}/messages`,
@@ -69,8 +73,8 @@ export default {
       ],
       execute: async (args, ctx) => {
         try {
-          const action = args.action?.value?.toLowerCase();
-          const link = args.link?.value;
+          const action = getArg(args, "action")?.toLowerCase();
+          const link = getArg(args, "link");
 
           if (action === "save" && !link) {
             const data = getProfile();
