@@ -3,11 +3,19 @@ import { findByProps } from "@vendetta/metro";
 import { showToast } from "@vendetta/ui/toasts";
 
 const UserStore = findByProps("getCurrentUser");
-const APIUtils = findByProps("getAPIBaseURL", "patch");
+const APIUtils = findByProps("getAPIBaseURL", "patch", "post");
 const upload = findByProps("uploadFile");
+
+async function sendMessage(channelId, content) {
+  await APIUtils.post({
+    url: `/channels/${channelId}/messages`,
+    body: { content }
+  });
+}
 
 async function fetchJSON(url) {
   const r = await fetch(url);
+  if (!r.ok) throw new Error("Failed to fetch JSON");
   return await r.json();
 }
 
@@ -56,36 +64,31 @@ export default {
       name: "profile",
       description: "Save / Load profile",
       options: [
-        {
-          name: "action",
-          description: "save or load",
-          type: 3,
-          required: true
-        },
-        {
-          name: "link",
-          description: "raw json link",
-          type: 3,
-          required: false
-        }
+        { name: "action", type: 3, required: true },
+        { name: "link", type: 3, required: false }
       ],
       execute: async (args, ctx) => {
-        const action = args.action;
-        const link = args.link;
-        if (action === "save" && !link) {
-          const data = getProfile();
-          await sendJSON(ctx.channel.id, data);
-          showToast("Profile saved");
-        }
-        if (action === "load" && link) {
-          const data = await fetchJSON(link);
-          await applyProfile(data);
-          showToast("Profile loaded");
-        }
-        if (action === "save" && link) {
-          const data = await fetchJSON(link);
-          await sendJSON(ctx.channel.id, data);
-          showToast("JSON sent");
+        try {
+          const action = args.action?.toLowerCase();
+          const link = args.link;
+          if (action === "save" && !link) {
+            const data = getProfile();
+            await sendJSON(ctx.channel.id, data);
+            showToast("Profile saved");
+          } else if (action === "load" && link) {
+            const data = await fetchJSON(link);
+            await applyProfile(data);
+            showToast("Profile loaded");
+          } else if (action === "save" && link) {
+            const data = await fetchJSON(link);
+            await sendJSON(ctx.channel.id, data);
+            showToast("JSON sent");
+          } else {
+            throw new Error("Invalid arguments");
+          }
+        } catch (e) {
+          await sendMessage(ctx.channel.id, `❌ Error: ${e.message}`);
+          showToast("Profile error");
         }
       }
     });
