@@ -1,11 +1,18 @@
 {
-  "name": "FakeDeafen",
-  "description": "Shows you as deafened while you can still hear and talk.",
-  "authors": [
-    {
-      "name": "User",
-      "id": "000000000000000000"
+    "name": "Custom Voice Messages",
+    "description": "Allows Sending any audio as a voice message",
+    "authors": [
+        {
+            "name": "Dziurwa",
+            "id": "1034579679526526976"
+        },
+        {
+            "name": "シグマ siguma",
+            "id": "737597276339437578"
+        }
+    ],
+    "main": "src/index.ts",
+    "vendetta": {
+        "icon": "voice_bar_mute_off"
     }
-  ],
-  "main": "index.ts"
 }
