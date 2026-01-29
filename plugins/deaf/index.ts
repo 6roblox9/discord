@@ -69,23 +69,32 @@ export default {
       ],
       execute: async (args, ctx) => {
         try {
-          const action = args.action?.toLowerCase();
-          const link = args.link;
+          const action = args.action?.value?.toLowerCase();
+          const link = args.link?.value;
+
           if (action === "save" && !link) {
             const data = getProfile();
             await sendJSON(ctx.channel.id, data);
             showToast("Profile saved");
-          } else if (action === "load" && link) {
+            return;
+          }
+
+          if (action === "load" && link) {
             const data = await fetchJSON(link);
             await applyProfile(data);
             showToast("Profile loaded");
-          } else if (action === "save" && link) {
+            return;
+          }
+
+          if (action === "save" && link) {
             const data = await fetchJSON(link);
             await sendJSON(ctx.channel.id, data);
             showToast("JSON sent");
-          } else {
-            throw new Error("Invalid arguments");
+            return;
           }
+
+          throw new Error("Invalid arguments");
+
         } catch (e) {
           await sendMessage(ctx.channel.id, `❌ Error: ${e.message}`);
           showToast("Profile error");
