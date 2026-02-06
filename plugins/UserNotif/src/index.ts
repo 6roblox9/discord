@@ -1,97 +1,133 @@
-import { findByProps } from "@vendetta/metro";
-import { after } from "@vendetta/patcher";
-import { showToast } from "@vendetta/ui/toasts";
+import { React, ReactNative as RN } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
-import Settings from "./settings";
+import { findByProps } from "@vendetta/metro";
+import { showToast } from "@vendetta/ui/toasts";
+import { useProxy } from "@vendetta/storage";
+import { getAssetIDByName } from "@vendetta/ui/assets";
 
-const FluxDispatcher = findByProps("dispatch", "subscribe");
-const PresenceStore = findByProps("getStatus");
-const RelationshipStore = findByProps("getFriendIDs");
-const ChannelStore = findByProps("getChannel");
-const GuildStore = findByProps("getGuild");
-const UserStore = findByProps("getUser");
+const { ScrollView } = findByProps("ScrollView");
+const { TableRowGroup, TableRow, TableSwitchRow, Stack, TextInput } = findByProps(
+  "TableSwitchRow",
+  "TableCheckboxRow",
+  "TableRowGroup",
+  "Stack",
+  "TableRow"
+);
 
-if (storage.trackFriends === undefined) storage.trackFriends = true;
-if (!storage.userIds) storage.userIds = [];
+storage.userIds ??= [];
+storage.trackFriends ??= false;
 
-const lastStatuses: Record<string, string | undefined> = {};
+export default function Settings() {
+  useProxy(storage);
+  const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
+  const [newUserId, setNewUserId] = React.useState("");
 
-const getTrackedIds = () => {
-  const ids = new Set<string>();
-  if (storage.trackFriends) {
-    for (const id of RelationshipStore.getFriendIDs()) ids.add(id);
-  }
-  for (const id of storage.userIds) ids.add(id);
-  return [...ids];
-};
-
-const getName = (id: string) => UserStore.getUser(id)?.username ?? id;
-
-let unpatchPresence: (() => void) | null = null;
-let unsubMessage: (() => void) | null = null;
-let unsubTyping: (() => void) | null = null;
-
-export default {
-  onLoad() {
-    for (const id of getTrackedIds()) {
-      lastStatuses[id] = PresenceStore.getStatus(id);
+  const addUserId = () => {
+    if (!newUserId.trim()) {
+      showToast("Please enter a user ID", getAssetIDByName("Small"));
+      return;
     }
 
-    unpatchPresence = after("dispatch", FluxDispatcher, ([p]) => {
-      if (p?.type !== "PRESENCE_UPDATE") return;
-      const id = p.user?.id;
-      if (!getTrackedIds().includes(id)) return;
-      if (lastStatuses[id] !== p.status) {
-        lastStatuses[id] = p.status;
-        showToast(`${getName(id)} is now ${p.status}`);
-      }
-    });
+    const userIds = storage.userIds || [];
+    if (!userIds.includes(newUserId.trim())) {
+      storage.userIds = [...userIds, newUserId.trim()];
+      setNewUserId("");
+      forceUpdate();
+      showToast("User ID added", getAssetIDByName("Check"));
+    } else {
+      showToast("User ID already exists", getAssetIDByName("Warning"));
+    }
+  };
 
-    const onMessage = (p: any) => {
-      const m = p?.message;
-      const id = m?.author?.id;
-      if (!getTrackedIds().includes(id)) return;
-      const c = ChannelStore.getChannel(m.channel_id);
-      if (!c) return;
+  const removeUserId = (userId: string) => {
+    storage.userIds = storage.userIds.filter((id: string) => id !== userId);
+    forceUpdate();
+    showToast("User ID removed", getAssetIDByName("Check"));
+  };
 
-      if (c.guild_id) {
-        const g = GuildStore.getGuild(c.guild_id);
-        showToast(`${getName(id)} messaged in ${g?.name} #${c.name}`);
-      } else if (c.type === 3) {
-        showToast(`${getName(id)} messaged in group`);
-      } else {
-        showToast(`${getName(id)} messaged in DM`);
-      }
-    };
+  return (
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 10 }}>
+      <Stack spacing={8}>
+        <TableRowGroup title="Tracking Settings">
+          <TableSwitchRow
+            label="Track Friends"
+            subLabel="Enable tracking for your friends"
+            value={storage.trackFriends}
+            onValueChange={(value: boolean) => {
+              storage.trackFriends = value;
+              forceUpdate();
+              showToast(value ? "Friend tracking enabled" : "Friend tracking disabled", getAssetIDByName("Check"));
+            }}
+          />
+        </TableRowGroup>
 
-    const onTyping = (p: any) => {
-      const id = p?.userId;
-      if (!getTrackedIds().includes(id)) return;
-      const c = ChannelStore.getChannel(p.channelId);
-      if (!c) return;
+        <TableRowGroup title="Add User ID">
+          <Stack spacing={4}>
+            <TextInput
+              placeholder="Enter user ID"
+              value={newUserId}
+              onChange={setNewUserId}
+              isClearable
+              onSubmitEditing={addUserId}
+              returnKeyType="done"
+            />
+          </Stack>
+        </TableRowGroup>
 
-      if (c.guild_id) {
-        const g = GuildStore.getGuild(c.guild_id);
-        showToast(`${getName(id)} typing in ${g?.name} #${c.name}`);
-      } else if (c.type === 3) {
-        showToast(`${getName(id)} typing in group`);
-      } else {
-        showToast(`${getName(id)} typing in DM`);
-      }
-    };
+        <TableRowGroup>
+          <TableRow
+            label="Add User ID"
+            subLabel="Add a specific user ID to track"
+            trailing={<TableRow.Arrow />}
+            onPress={addUserId}
+          />
+        </TableRowGroup>
 
-    FluxDispatcher.subscribe("MESSAGE_CREATE", onMessage);
-    FluxDispatcher.subscribe("TYPING_START", onTyping);
+        {storage.userIds && storage.userIds.length > 0 && (
+          <TableRowGroup title="Tracked User IDs">
+            {storage.userIds.map((userId: string, index: number) => (
+              <TableRow
+                key={index}
+                label={userId}
+                trailing={
+                  <RN.TouchableOpacity
+                    onPress={() => removeUserId(userId)}
+                    style={{
+                      padding: 8,
+                      backgroundColor: "#ff4d4d",
+                      borderRadius: 12,
+                      width: 24,
+                      height: 24,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <RN.Image
+                      source={getAssetIDByName("TrashIcon")}
+                      style={{ width: 14, height: 14, tintColor: "#ffffff" }}
+                    />
+                  </RN.TouchableOpacity>
+                }
+              />
+            ))}
+          </TableRowGroup>
+        )}
 
-    unsubMessage = () => FluxDispatcher.unsubscribe("MESSAGE_CREATE", onMessage);
-    unsubTyping = () => FluxDispatcher.unsubscribe("TYPING_START", onTyping);
-  },
-
-  onUnload() {
-    unpatchPresence?.();
-    unsubMessage?.();
-    unsubTyping?.();
-  },
-
-  settings: Settings,
-};
+        <TableRowGroup title="About User Tracking">
+          <TableRow
+            label="How it Works"
+            subLabel="Track specific users by their Discord user IDs"
+          />
+          <TableRow
+            label="Finding User IDs"
+            subLabel="Enable Developer Mode in Discord settings, then open user profile and select three dots in right top, and copy their ID"
+          />
+          <TableRow
+            label="Friends vs Specific Users"
+            subLabel="Enable 'Track Friends' to track all friends, or add specific user IDs"
+          />
+        </TableRowGroup>
+      </Stack>
+    </ScrollView>
+  );
+}
