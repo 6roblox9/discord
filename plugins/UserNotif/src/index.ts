@@ -1,133 +1,67 @@
-import { React, ReactNative as RN } from "@vendetta/metro/common";
-import { storage } from "@vendetta/plugin";
 import { findByProps } from "@vendetta/metro";
-import { showToast } from "@vendetta/ui/toasts";
-import { useProxy } from "@vendetta/storage";
-import { getAssetIDByName } from "@vendetta/ui/assets";
+import { after } from "@vendetta/patcher";
+import { storage } from "@vendetta/plugin";
 
-const { ScrollView } = findByProps("ScrollView");
-const { TableRowGroup, TableRow, TableSwitchRow, Stack, TextInput } = findByProps(
-  "TableSwitchRow",
-  "TableCheckboxRow",
-  "TableRowGroup",
-  "Stack",
-  "TableRow"
-);
+const FluxDispatcher = findByProps("dispatch", "subscribe");
+const UserStore = findByProps("getCurrentUser");
 
-storage.userIds ??= [];
-storage.trackFriends ??= false;
+storage.platform ??= "desktop";
 
-export default function Settings() {
-  useProxy(storage);
-  const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
-  const [newUserId, setNewUserId] = React.useState("");
+const getPlatform = (bypass: boolean, userId?: string) => {
+  const p = storage.platform ?? "desktop";
+  if (bypass || userId === UserStore.getCurrentUser()?.id) {
+    switch (p) {
+      case "desktop":
+        return { browser: "Discord Client", vcIcon: 0 };
+      case "web":
+        return { browser: "Discord Web", vcIcon: 0 };
+      case "ios":
+        return { browser: "Discord iOS", vcIcon: 1 };
+      case "android":
+        return { browser: "Discord Android", vcIcon: 1 };
+      case "xbox":
+        return { browser: "Discord Embedded", vcIcon: 2 };
+      case "playstation":
+        return { browser: "Discord Embedded", vcIcon: 3 };
+      default:
+        return null;
+    }
+  }
+  return null;
+};
 
-  const addUserId = () => {
-    if (!newUserId.trim()) {
-      showToast("Please enter a user ID", getAssetIDByName("Small"));
-      return;
+let unpatchIdentify: (() => void) | null = null;
+let unpatchCallTile: (() => void) | null = null;
+
+export default {
+  onLoad() {
+    const Identify = findByProps("_doIdentify");
+    if (Identify?._doIdentify) {
+      unpatchIdentify = after("_doIdentify", Identify, (_, ret) => {
+        try {
+          if (ret?.properties) {
+            ret.properties = { ...ret.properties, ...getPlatform(true) };
+          }
+        } catch {}
+        return ret;
+      });
     }
 
-    const userIds = storage.userIds || [];
-    if (!userIds.includes(newUserId.trim())) {
-      storage.userIds = [...userIds, newUserId.trim()];
-      setNewUserId("");
-      forceUpdate();
-      showToast("User ID added", getAssetIDByName("Check"));
-    } else {
-      showToast("User ID already exists", getAssetIDByName("Warning"));
+    const CallTiles = findByProps("CallTile");
+    if (CallTiles?.CallTile?.memo) {
+      unpatchCallTile = after("memo", CallTiles.CallTile, ([props]) => {
+        try {
+          const r = getPlatform(false, props?.participantUserId);
+          if (r?.vcIcon != null) props.platform = r.vcIcon;
+        } catch {}
+      });
     }
-  };
+  },
 
-  const removeUserId = (userId: string) => {
-    storage.userIds = storage.userIds.filter((id: string) => id !== userId);
-    forceUpdate();
-    showToast("User ID removed", getAssetIDByName("Check"));
-  };
+  onUnload() {
+    unpatchIdentify?.();
+    unpatchCallTile?.();
+  },
 
-  return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 10 }}>
-      <Stack spacing={8}>
-        <TableRowGroup title="Tracking Settings">
-          <TableSwitchRow
-            label="Track Friends"
-            subLabel="Enable tracking for your friends"
-            value={storage.trackFriends}
-            onValueChange={(value: boolean) => {
-              storage.trackFriends = value;
-              forceUpdate();
-              showToast(value ? "Friend tracking enabled" : "Friend tracking disabled", getAssetIDByName("Check"));
-            }}
-          />
-        </TableRowGroup>
-
-        <TableRowGroup title="Add User ID">
-          <Stack spacing={4}>
-            <TextInput
-              placeholder="Enter user ID"
-              value={newUserId}
-              onChange={setNewUserId}
-              isClearable
-              onSubmitEditing={addUserId}
-              returnKeyType="done"
-            />
-          </Stack>
-        </TableRowGroup>
-
-        <TableRowGroup>
-          <TableRow
-            label="Add User ID"
-            subLabel="Add a specific user ID to track"
-            trailing={<TableRow.Arrow />}
-            onPress={addUserId}
-          />
-        </TableRowGroup>
-
-        {storage.userIds && storage.userIds.length > 0 && (
-          <TableRowGroup title="Tracked User IDs">
-            {storage.userIds.map((userId: string, index: number) => (
-              <TableRow
-                key={index}
-                label={userId}
-                trailing={
-                  <RN.TouchableOpacity
-                    onPress={() => removeUserId(userId)}
-                    style={{
-                      padding: 8,
-                      backgroundColor: "#ff4d4d",
-                      borderRadius: 12,
-                      width: 24,
-                      height: 24,
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <RN.Image
-                      source={getAssetIDByName("TrashIcon")}
-                      style={{ width: 14, height: 14, tintColor: "#ffffff" }}
-                    />
-                  </RN.TouchableOpacity>
-                }
-              />
-            ))}
-          </TableRowGroup>
-        )}
-
-        <TableRowGroup title="About User Tracking">
-          <TableRow
-            label="How it Works"
-            subLabel="Track specific users by their Discord user IDs"
-          />
-          <TableRow
-            label="Finding User IDs"
-            subLabel="Enable Developer Mode in Discord settings, then open user profile and select three dots in right top, and copy their ID"
-          />
-          <TableRow
-            label="Friends vs Specific Users"
-            subLabel="Enable 'Track Friends' to track all friends, or add specific user IDs"
-          />
-        </TableRowGroup>
-      </Stack>
-    </ScrollView>
-  );
-}
+  settings: require("./settings").default,
+};
