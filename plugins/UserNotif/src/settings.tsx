@@ -1,74 +1,54 @@
-import { React, ReactNative as RN } from "@vendetta/metro/common";
+import { React } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
-import { showToast } from "@vendetta/ui/toasts";
+import { useProxy } from "@vendetta/storage";
+import { findByProps } from "@vendetta/metro";
+
+const { ScrollView } = findByProps("ScrollView");
+const { TableRowGroup, TableRow, Stack } = findByProps(
+  "TableRowGroup",
+  "TableRow",
+  "Stack"
+);
+
+storage.platform ??= "desktop";
+
+const options = [
+  { label: "Desktop", value: "desktop" },
+  { label: "Web", value: "web" },
+  { label: "Android", value: "android" },
+  { label: "iOS", value: "ios" },
+  { label: "Xbox", value: "xbox" },
+  { label: "Playstation", value: "playstation" },
+];
 
 export default function Settings() {
-  const [ids, setIds] = React.useState(storage.userIds.join(","));
-  const [trackFriends, setTrackFriends] = React.useState(storage.trackFriends);
-
-  function apply() {
-    storage.userIds = ids.split(",").map(i => i.trim()).filter(Boolean);
-    storage.trackFriends = trackFriends;
-    showToast("saved");
-  }
+  useProxy(storage);
 
   return (
-    <RN.ScrollView style={{ flex: 1, backgroundColor: "#1e1f22", padding: 20 }}>
-      <RN.View style={{
-        backgroundColor: "#2b2d31",
-        padding: 16,
-        borderRadius: 12,
-        marginBottom: 16
-      }}>
-        <RN.View style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center"
-        }}>
-          <RN.Text style={{ color: "#fff", fontSize: 16, fontWeight: "600" }}>
-            Track Friends
-          </RN.Text>
-          <RN.Switch value={trackFriends} onValueChange={setTrackFriends} />
-        </RN.View>
-      </RN.View>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 10 }}>
+      <Stack spacing={8}>
+        <TableRowGroup title="Platform Spoofer">
+          {options.map((o) => (
+            <TableRow
+              key={o.value}
+              label={o.label}
+              trailing={storage.platform === o.value ? <TableRow.Checkmark /> : null}
+              onPress={() => (storage.platform = o.value)}
+            />
+          ))}
+        </TableRowGroup>
 
-      <RN.View style={{
-        backgroundColor: "#2b2d31",
-        padding: 16,
-        borderRadius: 12,
-        marginBottom: 20
-      }}>
-        <RN.Text style={{ color: "#fff", fontSize: 15, marginBottom: 8 }}>
-          Specific User IDs
-        </RN.Text>
-        <RN.TextInput
-          value={ids}
-          onChangeText={setIds}
-          placeholder="123, 456, 789"
-          placeholderTextColor="#888"
-          style={{
-            backgroundColor: "#1e1f22",
-            borderRadius: 8,
-            padding: 12,
-            color: "#fff",
-            fontSize: 14
-          }}
-        />
-      </RN.View>
-
-      <RN.TouchableOpacity
-        onPress={apply}
-        style={{
-          backgroundColor: "#5865f2",
-          paddingVertical: 14,
-          borderRadius: 10,
-          alignItems: "center"
-        }}
-      >
-        <RN.Text style={{ color: "#fff", fontSize: 16, fontWeight: "bold" }}>
-          Apply
-        </RN.Text>
-      </RN.TouchableOpacity>
-    </RN.ScrollView>
+        <TableRowGroup title="Notice">
+          <TableRow
+            label="Warning"
+            subLabel="Spoofing platform may lead to warnings or bans"
+          />
+          <TableRow
+            label="Restart Required"
+            subLabel="Restart Discord after changing platform"
+          />
+        </TableRowGroup>
+      </Stack>
+    </ScrollView>
   );
 }
