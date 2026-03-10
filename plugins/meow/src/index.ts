@@ -3,84 +3,104 @@ import { findByProps } from "@vendetta/metro";
 import { showToast } from "@vendetta/ui/toasts";
 
 const APIUtils = findByProps("getAPIBaseURL", "get", "post", "del");
+const { getCurrentUser } = findByProps("getCurrentUser");
 
 async function deleteMessages(channelId, messageType, targetUser = null) {
-  const filters = {
-    all: (msg) => msg.author.id === targetUser?.id || !targetUser,
-    files: (msg) => msg.author.id === targetUser?.id || !targetUser && msg.attachments.length > 0,
-    links: (msg) => msg.author.id === targetUser?.id || !targetUser && /https?:\/\/\S+/.test(msg.content),
-    text: (msg) => msg.author.id === targetUser?.id || !targetUser && !msg.attachments.length && !/https?:\/\/\S+/.test(msg.content)
-  };
-
   try {
-    const messages = await APIUtils.get(`/channels/${channelId}/messages`);
-    const messagesToDelete = messages.filter(filters[messageType]);
+    const messages = await APIUtils.get({
+      url: `/channels/${channelId}/messages`,
+      query: { limit: 100 }
+    });
+
+    const messagesToDelete = messages.filter(msg => {
+      if (targetUser && targetUser.id !== 'everyone' && msg.author.id !== targetUser.id) {
+        return false;
+      }
+      
+      switch(messageType) {
+        case 'all':
+          return true;
+        case 'files':
+          return msg.attachments.length > 0;
+        case 'links':
+          return /https?:\/\/\S+/.test(msg.content);
+        case 'text':
+          return !msg.attachments.length && !/https?:\/\/\S+/.test(msg.content);
+        default:
+          return false;
+      }
+    });
 
     for (const message of messagesToDelete) {
-      await APIUtils.del({
-        url: `/channels/${channelId}/messages/${message.id}`
-      });
+      try {
+        await APIUtils.del({
+          url: `/channels/${channelId}/messages/${message.id}`
+        });
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (e) {
+        console.log(`Failed to delete message ${message.id}:`, e);
+      }
     }
 
-    showToast(`Deleted ${messagesToDelete.length} ${messageType} message(s)`);
-  } catch {
-    showToast("Request failed");
+    showToast(`✅ Deleted ${messagesToDelete.length} messages`);
+  } catch (e) {
+    console.log("Error:", e);
+    showToast("❌ Request failed");
   }
 }
 
 async function handleCommand(args, context) {
-  const { channelId, channelType, guildId, member } = context;
+  try {
+    const { channelId } = context;
+    const currentUser = getCurrentUser();
+    
+    const messageType = args?.type?.value;
+    const who = args?.who?.value || 'me';
 
-  const messageType = args?.type;
-  const who = args?.who;
-
-  let targetUser = null;
-
-  if (who && who !== 'me' && who !== 'everyone') {
-    targetUser = who;  // Assuming it's a user ID
-  }
-
-  if (channelType === 'DM' || channelType === 'GROUP_DM') {
-    if (['all', 'files', 'links', 'text'].includes(messageType)) {
-      await deleteMessages(channelId, messageType, targetUser);
+    let targetUser = null;
+    
+    if (who === 'me') {
+      targetUser = currentUser;
+    } else if (who === 'everyone') {
+      targetUser = { id: 'everyone' };
     } else {
-      showToast("Invalid type. Use: all, files, links, or text.");
+      targetUser = { id: who };
     }
-    return;
-  }
 
-  if (guildId) {
-    const memberPermissions = await APIUtils.get(`/guilds/${guildId}/members/${member.id}/permissions`);
-    if (memberPermissions.includes("MANAGE_MESSAGES")) {
-      if (who === 'me' || who === 'everyone') {
-        await deleteMessages(channelId, messageType, who === 'me' ? member : null);
-      } else if (targetUser) {
-        await deleteMessages(channelId, messageType, { id: targetUser });
-      } else {
-        showToast("Invalid 'who' value. Use: me, everyone, or a user ID.");
-      }
-    } else {
-      showToast("You do not have permission to manage messages in this channel.");
-    }
+    await deleteMessages(channelId, messageType, targetUser);
+    
+  } catch (e) {
+    console.log("Command error:", e);
+    showToast("❌ Command execution failed");
   }
 }
 
 export const loadCommands = () => {
   registerCommand({
     name: "del",
-    description: "Delete messages in current channel based on type",
+    description: "Delete messages in current channel",
     options: [
       {
         name: "type",
-        description: "all | files | links | text",
-        type: 4,
-        required: true
+        description: "Message type (all, files, links, text)",
+        type: 3,
+        required: true,
+        choices: [
+          { name: "All", value: "all" },
+          { name: "Files", value: "files" },
+          { name: "Links", value: "links" },
+          { name: "Text only", value: "text" }
+        ]
       },
       {
         name: "who",
-        description: "me | everyone | user ID",
+        description: "Who? (me, everyone, or user ID)",
         type: 3,
-        required: false
+        required: false,
+        choices: [
+          { name: "Me", value: "me" },
+          { name: "Everyone", value: "everyone" }
+        ]
       }
     ],
     execute: (args, context) => handleCommand(args, context)
@@ -95,6 +115,5 @@ export default {
   },
   onUnload() {
     unloadCommands();
-  },
-  settings: Settings
+  }
 };
