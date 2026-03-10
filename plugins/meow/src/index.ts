@@ -4,6 +4,7 @@ import { showToast } from "@vendetta/ui/toasts";
 
 const APIUtils = findByProps("getAPIBaseURL", "get", "post", "del");
 const { getCurrentUser } = findByProps("getCurrentUser");
+const http = findByProps("get", "post", "delete");
 
 async function deleteMessages(channelId, messageType, targetUser = null) {
   try {
@@ -31,18 +32,20 @@ async function deleteMessages(channelId, messageType, targetUser = null) {
       }
     });
 
+    let deletedCount = 0;
     for (const message of messagesToDelete) {
       try {
-        await APIUtils.del({
+        await http.delete({
           url: `/channels/${channelId}/messages/${message.id}`
         });
+        deletedCount++;
         await new Promise(resolve => setTimeout(resolve, 500));
       } catch (e) {
         console.log(`Failed to delete message ${message.id}:`, e);
       }
     }
 
-    showToast(`✅ Deleted ${messagesToDelete.length} messages`);
+    showToast(`✅ Deleted ${deletedCount} messages`);
   } catch (e) {
     console.log("Error:", e);
     showToast("❌ Request failed");
