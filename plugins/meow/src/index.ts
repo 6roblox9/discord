@@ -51,8 +51,30 @@ async function deleteMessages(channelId, messageType, targetUser = null) {
 
 async function handleCommand(args, ctx) {
   try {
-    if (!args || !args.type) {
-      showToast("❌ Please specify message type");
+    let messageType = args?.type;
+    let who = args?.who || 'me';
+
+    if (!messageType) {
+      if (args?.[0]?.name === 'type') {
+        messageType = args[0].value;
+      } else if (args?.[0]?.value) {
+        messageType = args[0].value;
+      } else if (typeof args === 'object' && args !== null) {
+        const firstKey = Object.keys(args)[0];
+        if (firstKey && args[firstKey]) {
+          messageType = args[firstKey];
+        }
+      }
+    }
+
+    if (!messageType) {
+      showToast("❌ Please specify message type (all, files, links, text)");
+      return;
+    }
+
+    const validTypes = ['all', 'files', 'links', 'text'];
+    if (!validTypes.includes(messageType)) {
+      showToast("❌ Invalid type. Use: all, files, links, text");
       return;
     }
 
@@ -61,9 +83,6 @@ async function handleCommand(args, ctx) {
       showToast("❌ No channel found");
       return;
     }
-
-    const messageType = args.type;
-    const who = args.who || 'me';
 
     const currentUser = getCurrentUser();
     let targetUser = null;
