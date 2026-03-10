@@ -1,0 +1,14 @@
+{
+    "name": "UserNotif",
+    "description": "Get notified when a User is texting. (mutual server required)",
+    "authors": [
+        {
+            "name": "coder.gg",
+            "id": "1099039269391171765"
+        }
+    ],
+    "main": "src/index.ts",
+    "vendetta": {
+        "icon": "ic_person_status"
+    }
+}
