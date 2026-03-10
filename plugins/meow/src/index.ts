@@ -92,25 +92,15 @@ export default {
       options: [
         {
           name: "type",
-          description: "Message type (all, files, links, text)",
+          description: "all, files, links, text",
           type: 3,
-          required: true,
-          choices: [
-            { name: "All", value: "all" },
-            { name: "Files", value: "files" },
-            { name: "Links", value: "links" },
-            { name: "Text only", value: "text" }
-          ]
+          required: true
         },
         {
           name: "who",
-          description: "Who? (me, everyone, or user ID)",
+          description: "me, everyone, or user ID",
           type: 3,
-          required: false,
-          choices: [
-            { name: "Me", value: "me" },
-            { name: "Everyone", value: "everyone" }
-          ]
+          required: false
         }
       ],
       execute: handleCommand
