@@ -4,7 +4,8 @@ import { showToast } from "@vendetta/ui/toasts";
 
 const APIUtils = findByProps("getAPIBaseURL", "get", "post", "del");
 const { getCurrentUser } = findByProps("getCurrentUser");
-const http = findByProps("get", "post", "delete");
+const { getChannel } = findByProps("getChannel");
+const { deleteMessage } = findByProps("deleteMessage", "deleteMessages");
 
 async function deleteMessages(channelId, messageType, targetUser = null) {
   try {
@@ -35,8 +36,11 @@ async function deleteMessages(channelId, messageType, targetUser = null) {
     let deletedCount = 0;
     for (const message of messagesToDelete) {
       try {
-        await http.delete({
-          url: `/channels/${channelId}/messages/${message.id}`
+        await APIUtils.del({
+          url: `/channels/${channelId}/messages/${message.id}`,
+          headers: {
+            'Content-Type': 'application/json'
+          }
         });
         deletedCount++;
         await new Promise(resolve => setTimeout(resolve, 500));
