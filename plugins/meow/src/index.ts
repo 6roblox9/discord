@@ -49,16 +49,19 @@ async function deleteMessages(channelId, messageType, targetUser = null) {
   }
 }
 
-async function handleCommand(args, context) {
+async function handleCommand(args, ctx) {
   try {
-    const { channel, guild, author } = context;
-    
+    if (!args || !args.type) {
+      showToast("❌ Please specify message type");
+      return;
+    }
+
+    const channel = ctx?.channel;
     if (!channel) {
       showToast("❌ No channel found");
       return;
     }
 
-    const channelId = channel.id;
     const messageType = args.type;
     const who = args.who || 'me';
 
@@ -73,7 +76,7 @@ async function handleCommand(args, context) {
       targetUser = { id: who };
     }
 
-    await deleteMessages(channelId, messageType, targetUser);
+    await deleteMessages(channel.id, messageType, targetUser);
     
   } catch (e) {
     console.log("Command error:", e);
@@ -81,43 +84,39 @@ async function handleCommand(args, context) {
   }
 }
 
-export const onLoad = () => {
-  registerCommand({
-    name: "del",
-    description: "Delete messages in current channel",
-    options: [
-      {
-        name: "type",
-        description: "Message type (all, files, links, text)",
-        type: 3,
-        required: true,
-        choices: [
-          { name: "All", value: "all" },
-          { name: "Files", value: "files" },
-          { name: "Links", value: "links" },
-          { name: "Text only", value: "text" }
-        ]
-      },
-      {
-        name: "who",
-        description: "Who? (me, everyone, or user ID)",
-        type: 3,
-        required: false,
-        choices: [
-          { name: "Me", value: "me" },
-          { name: "Everyone", value: "everyone" }
-        ]
-      }
-    ],
-    execute: handleCommand
-  });
-};
-
-export const onUnload = () => {
-  unregisterAllCommands();
-};
-
 export default {
-  onLoad,
-  onUnload
+  onLoad: () => {
+    registerCommand({
+      name: "del",
+      description: "Delete messages in current channel",
+      options: [
+        {
+          name: "type",
+          description: "Message type (all, files, links, text)",
+          type: 3,
+          required: true,
+          choices: [
+            { name: "All", value: "all" },
+            { name: "Files", value: "files" },
+            { name: "Links", value: "links" },
+            { name: "Text only", value: "text" }
+          ]
+        },
+        {
+          name: "who",
+          description: "Who? (me, everyone, or user ID)",
+          type: 3,
+          required: false,
+          choices: [
+            { name: "Me", value: "me" },
+            { name: "Everyone", value: "everyone" }
+          ]
+        }
+      ],
+      execute: handleCommand
+    });
+  },
+  onUnload: () => {
+    unregisterAllCommands();
+  }
 };
