@@ -51,12 +51,18 @@ async function deleteMessages(channelId, messageType, targetUser = null) {
 
 async function handleCommand(args, context) {
   try {
-    const { channelId } = context;
-    const currentUser = getCurrentUser();
+    const { channel, guild, author } = context;
     
-    const messageType = args?.type?.value;
-    const who = args?.who?.value || 'me';
+    if (!channel) {
+      showToast("❌ No channel found");
+      return;
+    }
 
+    const channelId = channel.id;
+    const messageType = args.type;
+    const who = args.who || 'me';
+
+    const currentUser = getCurrentUser();
     let targetUser = null;
     
     if (who === 'me') {
@@ -75,7 +81,7 @@ async function handleCommand(args, context) {
   }
 }
 
-export const loadCommands = () => {
+export const onLoad = () => {
   registerCommand({
     name: "del",
     description: "Delete messages in current channel",
@@ -103,17 +109,15 @@ export const loadCommands = () => {
         ]
       }
     ],
-    execute: (args, context) => handleCommand(args, context)
+    execute: handleCommand
   });
 };
 
-export const unloadCommands = () => unregisterAllCommands();
+export const onUnload = () => {
+  unregisterAllCommands();
+};
 
 export default {
-  onLoad() {
-    loadCommands();
-  },
-  onUnload() {
-    unloadCommands();
-  }
+  onLoad,
+  onUnload
 };
