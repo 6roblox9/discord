@@ -11,10 +11,16 @@ const { FormRow, FormIcon } = Forms;
 
 const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
     const message = msg?.message;
-    const attachment = message?.attachments?.[0];
-    const proxyUrl = attachment?.proxy_url || attachment?.proxyURL || attachment?.url;
+    if (!message || key !== "MessageLongPressActionSheet") return;
 
-    if (key !== "MessageLongPressActionSheet" || !proxyUrl) return;
+    // البحث في المرفقات أولاً، ثم في الـ Embeds إذا لم يجد شيئاً
+    const proxyUrl = 
+        message.attachments?.[0]?.proxy_url || 
+        message.attachments?.[0]?.proxyURL ||
+        message.embeds?.[0]?.image?.proxyURL ||
+        message.embeds?.[0]?.image?.proxy_url;
+
+    if (!proxyUrl) return;
 
     component.then((instance: any) => {
         const unpatchAfter = after("default", instance, (_, component) => {
@@ -35,11 +41,18 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
                 showToast("Copied Proxy Link", getAssetIDByName("toast_copy_link"));
             };
 
+            const IconComponent = () => (
+                <FormIcon
+                    style={{ opacity: 1 }}
+                    source={getAssetIDByName("ic_link")}
+                />
+            );
+
             if (buttons) {
                 buttons.push(
                     <FormRow
                         label="Copy Proxy Link"
-                        leading={<FormIcon style={{ opacity: 1 }} source={getAssetIDByName("ic_link")} />}
+                        leading={<IconComponent />}
                         onPress={copyAction}
                     />,
                 );
@@ -50,7 +63,13 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
                 middleGroup.props.children.push(
                     <ActionSheetRow
                         label="Copy Proxy Link"
-                        icon={getAssetIDByName("ic_link")}
+                        icon={{
+                            $$typeof: middleGroup.props.children[0].props.icon.$$typeof,
+                            type: middleGroup.props.children[0].props.icon.type,
+                            props: {
+                                IconComponent: IconComponent,
+                            },
+                        }}
                         onPress={copyAction}
                         key="copy-proxy-link"
                     />,
