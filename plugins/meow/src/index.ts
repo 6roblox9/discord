@@ -35,22 +35,18 @@ export default () => {
                 // Get the proxy_url from attachments
                 const proxyUrl = message.attachments.find((att: any) => att.proxy_url)?.proxy_url;
 
-                const copyProxyButton = (
-                    <FormRow
-                        label="Copy Proxy Link"
-                        leading={
-                            <FormIcon
-                                style={{ opacity: 1 }}
-                                source={getAssetIDByName("ic_link")}
-                            />
-                        }
-                        onPress={() => {
-                            clipboard.setString(proxyUrl);
-                            showToast("Copied proxy link to clipboard", getAssetIDByName("toast_copy_link"));
-                            LazyActionSheet.hideActionSheet();
-                        }}
-                    />
-                );
+                const copyProxyButton = React.createElement(FormRow, {
+                    label: "Copy Proxy Link",
+                    leading: React.createElement(FormIcon, {
+                        style: { opacity: 1 },
+                        source: getAssetIDByName("ic_link")
+                    }),
+                    onPress: () => {
+                        clipboard.setString(proxyUrl);
+                        showToast("Copied proxy link to clipboard", getAssetIDByName("toast_copy_link"));
+                        LazyActionSheet.hideActionSheet();
+                    }
+                });
 
                 if (buttons) {
                     buttons.push(copyProxyButton);
@@ -59,31 +55,27 @@ export default () => {
                     const middleGroup = actionSheetContainer[1];
                     const ActionSheetRow = middleGroup.props.children[0].type;
                     
-                    const copyProxyActionRow = (
-                        <ActionSheetRow
-                            label="Copy Proxy Link"
-                            icon={{
-                                $$typeof: middleGroup.props.children[0].props.icon.$$typeof,
-                                type: middleGroup.props.children[0].props.icon.type,
-                                key: null,
-                                ref: null,
-                                props: {
-                                    IconComponent: () => (
-                                        <FormIcon
-                                            style={{ opacity: 1 }}
-                                            source={getAssetIDByName("ic_link")}
-                                        />
-                                    ),
-                                },
-                            }}
-                            onPress={() => {
-                                clipboard.setString(proxyUrl);
-                                showToast("Copied proxy link to clipboard", getAssetIDByName("toast_copy_link"));
-                                LazyActionSheet.hideActionSheet();
-                            }}
-                            key="copy-proxy-link"
-                        />
-                    );
+                    const copyProxyActionRow = React.createElement(ActionSheetRow, {
+                        label: "Copy Proxy Link",
+                        icon: {
+                            $$typeof: middleGroup.props.children[0].props.icon.$$typeof,
+                            type: middleGroup.props.children[0].props.icon.type,
+                            key: null,
+                            ref: null,
+                            props: {
+                                IconComponent: () => React.createElement(FormIcon, {
+                                    style: { opacity: 1 },
+                                    source: getAssetIDByName("ic_link")
+                                })
+                            }
+                        },
+                        onPress: () => {
+                            clipboard.setString(proxyUrl);
+                            showToast("Copied proxy link to clipboard", getAssetIDByName("toast_copy_link"));
+                            LazyActionSheet.hideActionSheet();
+                        },
+                        key: "copy-proxy-link"
+                    });
                     
                     middleGroup.props.children.push(copyProxyActionRow);
                     console.log("[CopyProxyLink] Added to ActionSheetRowGroup");
