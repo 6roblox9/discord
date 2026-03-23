@@ -13,7 +13,6 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
     const message = msg?.message;
     if (!message || key !== "MessageLongPressActionSheet") return;
 
-    // البحث في المرفقات أو الـ Embeds لجلب الرابط
     const proxyUrl = 
         message.attachments?.[0]?.proxy_url || 
         message.attachments?.[0]?.proxyURL ||
@@ -26,40 +25,36 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
         const unpatchAfter = after("default", instance, (_, component) => {
             React.useEffect(() => () => unpatchAfter(), []);
 
-            // 1. البحث عن المجموعة التي تحتوي على أزرار مثل "Save Image" أو "Copy Media Link"
-            // هذا سيعطينا المجموعة التي يجب أن نضيف زرنا إليها.
             const actionSheetRows = findInReactTree(
                 component,
-                (x) => Array.isArray(x?.props?.children) && x?.type?.name === "ActionSheetRowGroup" && x.props.children.length > 0
+                (x) => Array.isArray(x?.props?.children) && x?.type?.name === "ActionSheetRowGroup"
             );
 
-            // 2. إذا وجدنا مجموعة تحتوي على أزرار أخرى
             if (actionSheetRows) {
-                const actionSheetGroup = actionSheetRows;
-                const ActionSheetRow = actionSheetGroup.props.children[0].type;
+                const ActionSheetRow = actionSheetRows.props.children[0].type;
 
-                // 3. نقوم بإنشاء المكون الخاص بالزر مع الأيقونة واللون
                 const copyAction = () => {
                     LazyActionSheet.hideActionSheet();
                     clipboard.setString(proxyUrl);
                     showToast("Copied Proxy Link", getAssetIDByName("toast_copy_link"));
                 };
 
-                // 4. إضافة الزر الجديد إلى نهاية المجموعة
-                actionSheetGroup.props.children.push(
+                // إنشاء الأيقونة بشكل مبسط لتجنب الـ Crash
+                const renderIcon = () => (
+                    <FormIcon
+                        style={{ opacity: 1 }}
+                        source={getAssetIDByName("ic_link")}
+                    />
+                );
+
+                actionSheetRows.props.children.push(
                     <ActionSheetRow
                         label="Copy Proxy Link"
-                        icon={{
-                            $$typeof: Symbol.for("react.element"),
-                            type: FormIcon,
-                            props: {
-                                source: getAssetIDByName("ic_link"),
-                                style: { opacity: 1 } // ضمان ظهور الأيقونة
-                            },
-                        }}
                         onPress={copyAction}
                         key="copy-proxy-link"
-                    />,
+                        // الطريقة الأكثر أماناً لحقن الأيقونة في Vendetta
+                        icon={renderIcon()} 
+                    />
                 );
             }
         });
