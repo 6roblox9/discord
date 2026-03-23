@@ -12,7 +12,7 @@ const { FormRow, FormIcon } = Forms;
 const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
     const message = msg?.message;
     const attachment = message?.attachments?.[0];
-    const proxyUrl = attachment?.proxy_url || attachment?.proxyURL;
+    const proxyUrl = attachment?.proxy_url || attachment?.proxyURL || attachment?.url;
 
     if (key !== "MessageLongPressActionSheet" || !proxyUrl) return;
 
@@ -35,18 +35,11 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
                 showToast("Copied Proxy Link", getAssetIDByName("toast_copy_link"));
             };
 
-            const IconComponent = () => (
-                <FormIcon
-                    style={{ opacity: 1 }}
-                    source={getAssetIDByName("ic_link")}
-                />
-            );
-
             if (buttons) {
                 buttons.push(
                     <FormRow
                         label="Copy Proxy Link"
-                        leading={<IconComponent />}
+                        leading={<FormIcon style={{ opacity: 1 }} source={getAssetIDByName("ic_link")} />}
                         onPress={copyAction}
                     />,
                 );
@@ -57,13 +50,7 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
                 middleGroup.props.children.push(
                     <ActionSheetRow
                         label="Copy Proxy Link"
-                        icon={{
-                            $$typeof: middleGroup.props.children[0].props.icon.$$typeof,
-                            type: middleGroup.props.children[0].props.icon.type,
-                            props: {
-                                IconComponent: IconComponent,
-                            },
-                        }}
+                        icon={getAssetIDByName("ic_link")}
                         onPress={copyAction}
                         key="copy-proxy-link"
                     />,
