@@ -1,6 +1,7 @@
-import { before } from "@vendetta/patcher";
+import { before, after } from "@vendetta/patcher";
 import { getAssetIDByName } from "@vendetta/ui/assets";
-import { findByProps } from "@vendetta/metro";
+import { findInReactTree } from "@vendetta/utils";
+import { findByName, findByProps } from "@vendetta/metro";
 import { React, clipboard } from "@vendetta/metro/common";
 import { showToast } from "@vendetta/ui/toasts";
 import { Forms } from "@vendetta/ui/components";
@@ -15,52 +16,81 @@ export default () => {
         const message = msg?.message;
         if (key !== "MessageLongPressActionSheet" || !message) return;
         
+        // Check if message has any attachment with proxy_url
         const hasProxyUrl = message.attachments?.some((att: any) => att.proxy_url);
         if (!hasProxyUrl) return;
 
         component.then((instance) => {
-            const orig = instance.default;
-            instance.default = (props: any) => {
-                const result = orig(props);
-                
-                // Find all rows and add our button
-                const findAndAddButton = (obj: any) => {
-                    if (!obj) return;
+            const afterPatch = after("default", instance, (_, component: any) => {
+                // Find the action sheet container and buttons using the same method as ViewRaw
+                const actionSheetContainer = findInReactTree(
+                    component,
+                    (x: any) => Array.isArray(x) && x[0]?.type?.name === "ActionSheetRowGroup",
+                );
+                const buttons = findInReactTree(
+                    component,
+                    (x: any) => x?.[0]?.type?.name === "ButtonRow",
+                );
+
+                // Get the proxy_url from attachments
+                const proxyUrl = message.attachments.find((att: any) => att.proxy_url)?.proxy_url;
+
+                const copyProxyButton = (
+                    <FormRow
+                        label="Copy Proxy Link"
+                        leading={
+                            <FormIcon
+                                style={{ opacity: 1 }}
+                                source={getAssetIDByName("ic_link")}
+                            />
+                        }
+                        onPress={() => {
+                            clipboard.setString(proxyUrl);
+                            showToast("Copied proxy link to clipboard", getAssetIDByName("toast_copy_link"));
+                            LazyActionSheet.hideActionSheet();
+                        }}
+                    />
+                );
+
+                if (buttons) {
+                    buttons.push(copyProxyButton);
+                    console.log("[CopyProxyLink] Added to buttons");
+                } else if (actionSheetContainer && actionSheetContainer[1]) {
+                    const middleGroup = actionSheetContainer[1];
+                    const ActionSheetRow = middleGroup.props.children[0].type;
                     
-                    // Check if this is a row group
-                    if (obj.type?.name === "ActionSheetRowGroup" && Array.isArray(obj.props?.children)) {
-                        const proxyUrl = message.attachments.find((att: any) => att.proxy_url)?.proxy_url;
-                        
-                        const button = React.createElement(FormRow, {
-                            label: "Copy Proxy Link",
-                            leading: React.createElement(FormIcon, {
-                                style: { opacity: 1 },
-                                source: getAssetIDByName("ic_link")
-                            }),
-                            onPress: () => {
+                    const copyProxyActionRow = (
+                        <ActionSheetRow
+                            label="Copy Proxy Link"
+                            icon={{
+                                $$typeof: middleGroup.props.children[0].props.icon.$$typeof,
+                                type: middleGroup.props.children[0].props.icon.type,
+                                key: null,
+                                ref: null,
+                                props: {
+                                    IconComponent: () => (
+                                        <FormIcon
+                                            style={{ opacity: 1 }}
+                                            source={getAssetIDByName("ic_link")}
+                                        />
+                                    ),
+                                },
+                            }}
+                            onPress={() => {
                                 clipboard.setString(proxyUrl);
                                 showToast("Copied proxy link to clipboard", getAssetIDByName("toast_copy_link"));
                                 LazyActionSheet.hideActionSheet();
-                            }
-                        });
-                        
-                        obj.props.children.push(button);
-                        console.log("[CopyProxyLink] Button added successfully!");
-                    }
+                            }}
+                            key="copy-proxy-link"
+                        />
+                    );
                     
-                    // Recursively search children
-                    if (obj.props?.children) {
-                        if (Array.isArray(obj.props.children)) {
-                            obj.props.children.forEach(findAndAddButton);
-                        } else if (typeof obj.props.children === 'object') {
-                            findAndAddButton(obj.props.children);
-                        }
-                    }
-                };
-                
-                findAndAddButton(result);
-                return result;
-            };
+                    middleGroup.props.children.push(copyProxyActionRow);
+                    console.log("[CopyProxyLink] Added to ActionSheetRowGroup");
+                } else {
+                    console.log("[CopyProxyLink] Could not find where to add button");
+                }
+            });
         });
     });
 };
