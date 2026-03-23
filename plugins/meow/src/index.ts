@@ -1,7 +1,7 @@
 import { before, after } from "@vendetta/patcher";
 import { getAssetIDByName } from "@vendetta/ui/assets";
 import { findInReactTree } from "@vendetta/utils";
-import { findByName, findByProps } from "@vendetta/metro";
+import { findByProps } from "@vendetta/metro";
 import { React, clipboard } from "@vendetta/metro/common";
 import { showToast } from "@vendetta/ui/toasts";
 import { Forms } from "@vendetta/ui/components";
@@ -15,7 +15,7 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
 
     if (key !== "MessageLongPressActionSheet" || !proxyUrl) return;
 
-    component.then((instance) => {
+    component.then((instance: any) => {
         const unpatchAfter = after("default", instance, (_, component) => {
             React.useEffect(() => () => unpatchAfter(), []);
 
