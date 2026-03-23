@@ -1,12 +1,13 @@
 import { before, after } from "@vendetta/patcher";
 import { getAssetIDByName } from "@vendetta/ui/assets";
 import { findInReactTree } from "@vendetta/utils";
-import { findByProps } from "@vendetta/metro";
+import { findByName, findByProps } from "@vendetta/metro";
 import { React, clipboard } from "@vendetta/metro/common";
 import { showToast } from "@vendetta/ui/toasts";
 import { Forms } from "@vendetta/ui/components";
 
 const LazyActionSheet = findByProps("openLazy", "hideActionSheet");
+const Navigation = findByProps("push", "pushLazy", "pop");
 const { FormRow, FormIcon } = Forms;
 
 let unpatch: () => void;
@@ -22,82 +23,28 @@ export default () => {
 
         component.then((instance) => {
             const afterPatch = after("default", instance, (_, component: any) => {
-                // Try to find buttons array directly
-                let buttonsArray = null;
-                
-                // Search through the component tree
-                const searchForButtons = (obj: any): any => {
-                    if (!obj) return null;
-                    
-                    // Check if this is a ButtonRow
-                    if (obj.type?.name === "ButtonRow" && Array.isArray(obj.props?.children)) {
-                        return obj.props.children;
-                    }
-                    
-                    // Check props.children
-                    if (obj.props?.children) {
-                        if (Array.isArray(obj.props.children)) {
-                            for (const child of obj.props.children) {
-                                const found = searchForButtons(child);
-                                if (found) return found;
-                            }
-                        } else if (typeof obj.props.children === 'object') {
-                            const found = searchForButtons(obj.props.children);
-                            if (found) return found;
-                        }
-                    }
-                    
-                    return null;
-                };
-                
-                buttonsArray = searchForButtons(component);
-                
-                // Get the proxy_url
+                React.useEffect(
+                    () => () => {
+                        afterPatch();
+                    },
+                    [],
+                );
+
+                const actionSheetContainer = findInReactTree(
+                    component,
+                    (x: any) => Array.isArray(x) && x[0]?.type?.name === "ActionSheetRowGroup",
+                );
+                const buttons = findInReactTree(
+                    component,
+                    (x: any) => x?.[0]?.type?.name === "ButtonRow",
+                );
+
+                // Get the proxy_url from attachments
                 const proxyUrl = message.attachments.find((att: any) => att.proxy_url)?.proxy_url;
-                
-                if (buttonsArray) {
-                    // Add our button to the existing buttons array
-                    const copyProxyButton = React.createElement(FormRow, {
-                        label: "Copy Proxy Link",
-                        leading: React.createElement(FormIcon, {
-                            style: { opacity: 1 },
-                            source: getAssetIDByName("ic_link")
-                        }),
-                        onPress: () => {
-                            clipboard.setString(proxyUrl);
-                            showToast("Copied proxy link to clipboard", getAssetIDByName("toast_copy_link"));
-                            LazyActionSheet.hideActionSheet();
-                        }
-                    });
-                    
-                    buttonsArray.push(copyProxyButton);
-                    console.log("[CopyProxyLink] Button added successfully!");
-                } else {
-                    console.log("[CopyProxyLink] Could not find buttons array");
-                    
-                    // Try alternative: find ActionSheetRowGroup
-                    const findActionSheetGroup = (obj: any): any => {
-                        if (!obj) return null;
-                        if (obj.type?.name === "ActionSheetRowGroup" && obj.props?.children) {
-                            return obj.props.children;
-                        }
-                        if (obj.props?.children) {
-                            if (Array.isArray(obj.props.children)) {
-                                for (const child of obj.props.children) {
-                                    const found = findActionSheetGroup(child);
-                                    if (found) return found;
-                                }
-                            } else if (typeof obj.props.children === 'object') {
-                                const found = findActionSheetGroup(obj.props.children);
-                                if (found) return found;
-                            }
-                        }
-                        return null;
-                    };
-                    
-                    const actionSheetGroup = findActionSheetGroup(component);
-                    if (actionSheetGroup) {
-                        const copyProxyButton = React.createElement(FormRow, {
+
+                if (buttons) {
+                    buttons.push(
+                        React.createElement(FormRow, {
                             label: "Copy Proxy Link",
                             leading: React.createElement(FormIcon, {
                                 style: { opacity: 1 },
@@ -108,13 +55,35 @@ export default () => {
                                 showToast("Copied proxy link to clipboard", getAssetIDByName("toast_copy_link"));
                                 LazyActionSheet.hideActionSheet();
                             }
-                        });
-                        
-                        actionSheetGroup.push(copyProxyButton);
-                        console.log("[CopyProxyLink] Added to ActionSheetRowGroup!");
-                    } else {
-                        console.log("[CopyProxyLink] Could not find any place to add button");
-                    }
+                        })
+                    );
+                } else if (actionSheetContainer && actionSheetContainer[1]) {
+                    const middleGroup = actionSheetContainer[1];
+                    const ActionSheetRow = middleGroup.props.children[0].type;
+
+                    const copyProxyButton = React.createElement(ActionSheetRow, {
+                        label: "Copy Proxy Link",
+                        icon: {
+                            $$typeof: middleGroup.props.children[0].props.icon.$$typeof,
+                            type: middleGroup.props.children[0].props.icon.type,
+                            key: null,
+                            ref: null,
+                            props: {
+                                IconComponent: () => React.createElement(FormIcon, {
+                                    style: { opacity: 1 },
+                                    source: getAssetIDByName("ic_link")
+                                })
+                            }
+                        },
+                        onPress: () => {
+                            clipboard.setString(proxyUrl);
+                            showToast("Copied proxy link to clipboard", getAssetIDByName("toast_copy_link"));
+                            LazyActionSheet.hideActionSheet();
+                        },
+                        key: "copy-proxy-link"
+                    });
+
+                    middleGroup.props.children.push(copyProxyButton);
                 }
             });
         });
