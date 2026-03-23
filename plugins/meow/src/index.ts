@@ -36,49 +36,43 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
 
       if (buttons) {
         buttons.push(
-          <FormRow
-            label="Copy Proxy Link"
-            leading={
-              <FormIcon
-                style={{ opacity: 1 }}
-                source={getAssetIDByName("ic_link")}
-              />
-            }
-            onPress={() => {
+          React.createElement(FormRow, {
+            label: "Copy Proxy Link",
+            leading: React.createElement(FormIcon, {
+              style: { opacity: 1 },
+              source: getAssetIDByName("ic_link"),
+            }),
+            onPress: () => {
               clipboard.setString(proxyUrl);
               showToast("Copied proxy link to clipboard", getAssetIDByName("toast_copy_link"));
-            }}
-          />
+            },
+          })
         );
       } else if (actionSheetContainer && actionSheetContainer[1]) {
         const middleGroup = actionSheetContainer[1];
 
         const ActionSheetRow = middleGroup.props.children[0].type;
 
-        const copyProxyLinkButton = (
-          <ActionSheetRow
-            label="Copy Proxy Link"
-            icon={{
-              $$typeof: middleGroup.props.children[0].props.icon.$$typeof,
-              type: middleGroup.props.children[0].props.icon.type,
-              key: null,
-              ref: null,
-              props: {
-                IconComponent: () => (
-                  <FormIcon
-                    style={{ opacity: 1 }}
-                    source={getAssetIDByName("ic_link")}
-                  />
-                ),
-              },
-            }}
-            onPress={() => {
-              clipboard.setString(proxyUrl);
-              showToast("Copied proxy link to clipboard", getAssetIDByName("toast_copy_link"));
-            }}
-            key="copy-proxy-link"
-          />
-        );
+        const copyProxyLinkButton = React.createElement(ActionSheetRow, {
+          label: "Copy Proxy Link",
+          icon: {
+            $$typeof: middleGroup.props.children[0].props.icon.$$typeof,
+            type: middleGroup.props.children[0].props.icon.type,
+            key: null,
+            ref: null,
+            props: {
+              IconComponent: () => React.createElement(FormIcon, {
+                style: { opacity: 1 },
+                source: getAssetIDByName("ic_link"),
+              }),
+            },
+          },
+          onPress: () => {
+            clipboard.setString(proxyUrl);
+            showToast("Copied proxy link to clipboard", getAssetIDByName("toast_copy_link"));
+          },
+          key: "copy-proxy-link",
+        });
 
         middleGroup.props.children.push(copyProxyLinkButton);
       }
