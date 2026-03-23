@@ -1,6 +1,5 @@
-import { before, after } from "@vendetta/patcher";
+import { before } from "@vendetta/patcher";
 import { getAssetIDByName } from "@vendetta/ui/assets";
-import { findInReactTree } from "@vendetta/utils";
 import { findByProps } from "@vendetta/metro";
 import { React, clipboard } from "@vendetta/metro/common";
 import { showToast } from "@vendetta/ui/toasts";
@@ -16,69 +15,52 @@ export default () => {
         const message = msg?.message;
         if (key !== "MessageLongPressActionSheet" || !message) return;
         
-        // Check if message has any attachment with proxy_url
         const hasProxyUrl = message.attachments?.some((att: any) => att.proxy_url);
         if (!hasProxyUrl) return;
 
         component.then((instance) => {
-            const afterPatch = after("default", instance, (_: any, component: any) => {
-                // Find the action sheet container and buttons
-                const actionSheetContainer = findInReactTree(
-                    component,
-                    (x: any) => Array.isArray(x) && x[0]?.type?.name === "ActionSheetRowGroup",
-                );
-                const buttons = findInReactTree(
-                    component,
-                    (x: any) => x?.[0]?.type?.name === "ButtonRow",
-                );
-
-                // Get the first proxy_url from attachments
-                const proxyUrl = message.attachments.find((att: any) => att.proxy_url)?.proxy_url;
-
-                const copyProxyButton = React.createElement(FormRow, {
-                    label: "Copy Proxy Link",
-                    leading: React.createElement(FormIcon, {
-                        style: { opacity: 1 },
-                        source: getAssetIDByName("ic_link")
-                    }),
-                    onPress: () => {
-                        clipboard.setString(proxyUrl);
-                        showToast("Copied proxy link to clipboard", getAssetIDByName("toast_copy_link"));
-                        LazyActionSheet.hideActionSheet();
-                    }
-                });
-
-                if (buttons) {
-                    buttons.push(copyProxyButton);
-                } else if (actionSheetContainer && actionSheetContainer[1]) {
-                    const middleGroup = actionSheetContainer[1];
-                    const ActionSheetRow = middleGroup.props.children[0].type;
+            const orig = instance.default;
+            instance.default = (props: any) => {
+                const result = orig(props);
+                
+                // Find all rows and add our button
+                const findAndAddButton = (obj: any) => {
+                    if (!obj) return;
                     
-                    const copyProxyActionRow = React.createElement(ActionSheetRow, {
-                        label: "Copy Proxy Link",
-                        icon: {
-                            $$typeof: middleGroup.props.children[0].props.icon.$$typeof,
-                            type: middleGroup.props.children[0].props.icon.type,
-                            key: null,
-                            ref: null,
-                            props: {
-                                IconComponent: () => React.createElement(FormIcon, {
-                                    style: { opacity: 1 },
-                                    source: getAssetIDByName("ic_link")
-                                })
+                    // Check if this is a row group
+                    if (obj.type?.name === "ActionSheetRowGroup" && Array.isArray(obj.props?.children)) {
+                        const proxyUrl = message.attachments.find((att: any) => att.proxy_url)?.proxy_url;
+                        
+                        const button = React.createElement(FormRow, {
+                            label: "Copy Proxy Link",
+                            leading: React.createElement(FormIcon, {
+                                style: { opacity: 1 },
+                                source: getAssetIDByName("ic_link")
+                            }),
+                            onPress: () => {
+                                clipboard.setString(proxyUrl);
+                                showToast("Copied proxy link to clipboard", getAssetIDByName("toast_copy_link"));
+                                LazyActionSheet.hideActionSheet();
                             }
-                        },
-                        onPress: () => {
-                            clipboard.setString(proxyUrl);
-                            showToast("Copied proxy link to clipboard", getAssetIDByName("toast_copy_link"));
-                            LazyActionSheet.hideActionSheet();
-                        },
-                        key: "copy-proxy-link"
-                    });
+                        });
+                        
+                        obj.props.children.push(button);
+                        console.log("[CopyProxyLink] Button added successfully!");
+                    }
                     
-                    middleGroup.props.children.push(copyProxyActionRow);
-                }
-            });
+                    // Recursively search children
+                    if (obj.props?.children) {
+                        if (Array.isArray(obj.props.children)) {
+                            obj.props.children.forEach(findAndAddButton);
+                        } else if (typeof obj.props.children === 'object') {
+                            findAndAddButton(obj.props.children);
+                        }
+                    }
+                };
+                
+                findAndAddButton(result);
+                return result;
+            };
         });
     });
 };
