@@ -1,138 +1,113 @@
-import { registerCommand, unregisterAllCommands } from "@vendetta/commands";
+import { before } from "@vendetta/patcher";
+import { getAssetIDByName } from "@vendetta/ui/assets";
+import { findInReactTree } from "@vendetta/utils";
 import { findByProps } from "@vendetta/metro";
+import { clipboard } from "@vendetta/metro/common";
 import { showToast } from "@vendetta/ui/toasts";
+import { Forms } from "@vendetta/ui/components";
 
-const APIUtils = findByProps("getAPIBaseURL", "get", "post", "del");
-const { getCurrentUser } = findByProps("getCurrentUser");
-const { getChannel } = findByProps("getChannel");
-const { deleteMessage } = findByProps("deleteMessage", "deleteMessages");
+const LazyActionSheet = findByProps("openLazy", "hideActionSheet");
+const { FormRow, FormIcon } = Forms;
 
-async function deleteMessages(channelId, messageType, targetUser = null) {
-  try {
-    const messages = await APIUtils.get({
-      url: `/channels/${channelId}/messages`,
-      query: { limit: 100 }
-    });
+let unpatch: () => void;
 
-    const messagesToDelete = messages.filter(msg => {
-      if (targetUser && targetUser.id !== 'everyone' && msg.author.id !== targetUser.id) {
-        return false;
-      }
-      
-      switch(messageType) {
-        case 'all':
-          return true;
-        case 'files':
-          return msg.attachments.length > 0;
-        case 'links':
-          return /https?:\/\/\S+/.test(msg.content);
-        case 'text':
-          return !msg.attachments.length && !/https?:\/\/\S+/.test(msg.content);
-        default:
-          return false;
-      }
-    });
+export default () => {
+    unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
+        const message = msg?.message;
+        if (key !== "MessageLongPressActionSheet" || !message) return;
+        
+        // Check if message has any attachment with proxy_url
+        const hasProxyUrl = message.attachments?.some((att: any) => att.proxy_url);
+        if (!hasProxyUrl) return;
 
-    let deletedCount = 0;
-    for (const message of messagesToDelete) {
-      try {
-        await APIUtils.del({
-          url: `/channels/${channelId}/messages/${message.id}`,
-          headers: {
-            'Content-Type': 'application/json'
-          }
+        component.then((instance) => {
+            const afterPatch = after("default", instance, (_, component) => {
+                // Find the action sheet container and buttons
+                const actionSheetContainer = findInReactTree(
+                    component,
+                    (x) => Array.isArray(x) && x[0]?.type?.name === "ActionSheetRowGroup",
+                );
+                const buttons = findInReactTree(
+                    component,
+                    (x) => x?.[0]?.type?.name === "ButtonRow",
+                );
+
+                // Get the first proxy_url from attachments
+                const proxyUrl = message.attachments.find((att: any) => att.proxy_url)?.proxy_url;
+
+                const copyProxyButton = (
+                    <FormRow
+                        label="Copy Proxy Link"
+                        leading={
+                            <FormIcon
+                                style={{ opacity: 1 }}
+                                source={getAssetIDByName("ic_link")}
+                            />
+                        }
+                        onPress={() => {
+                            clipboard.setString(proxyUrl);
+                            showToast("Copied proxy link to clipboard", getAssetIDByName("toast_copy_link"));
+                            LazyActionSheet.hideActionSheet();
+                        }}
+                    />
+                );
+
+                if (buttons) {
+                    buttons.push(copyProxyButton);
+                } else if (actionSheetContainer && actionSheetContainer[1]) {
+                    const middleGroup = actionSheetContainer[1];
+                    const ActionSheetRow = middleGroup.props.children[0].type;
+                    
+                    const copyProxyActionRow = (
+                        <ActionSheetRow
+                            label="Copy Proxy Link"
+                            icon={{
+                                $$typeof: middleGroup.props.children[0].props.icon.$$typeof,
+                                type: middleGroup.props.children[0].props.icon.type,
+                                key: null,
+                                ref: null,
+                                props: {
+                                    IconComponent: () => (
+                                        <FormIcon
+                                            style={{ opacity: 1 }}
+                                            source={getAssetIDByName("ic_link")}
+                                        />
+                                    ),
+                                },
+                            }}
+                            onPress={() => {
+                                clipboard.setString(proxyUrl);
+                                showToast("Copied proxy link to clipboard", getAssetIDByName("toast_copy_link"));
+                                LazyActionSheet.hideActionSheet();
+                            }}
+                            key="copy-proxy-link"
+                        />
+                    );
+                    
+                    middleGroup.props.children.push(copyProxyActionRow);
+                }
+            });
+            
+            // Store the afterPatch to clean up later
+            // This is a simplified version - you might want to track patches properly
+            setTimeout(() => afterPatch(), 0);
         });
-        deletedCount++;
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (e) {
-        console.log(`Failed to delete message ${message.id}:`, e);
-      }
-    }
-
-    showToast(`✅ Deleted ${deletedCount} messages`);
-  } catch (e) {
-    console.log("Error:", e);
-    showToast("❌ Request failed");
-  }
-}
-
-async function handleCommand(args, ctx) {
-  try {
-    let messageType = args?.type;
-    let who = args?.who || 'me';
-
-    if (!messageType) {
-      if (args?.[0]?.name === 'type') {
-        messageType = args[0].value;
-      } else if (args?.[0]?.value) {
-        messageType = args[0].value;
-      } else if (typeof args === 'object' && args !== null) {
-        const firstKey = Object.keys(args)[0];
-        if (firstKey && args[firstKey]) {
-          messageType = args[firstKey];
-        }
-      }
-    }
-
-    if (!messageType) {
-      showToast("❌ Please specify message type (all, files, links, text)");
-      return;
-    }
-
-    const validTypes = ['all', 'files', 'links', 'text'];
-    if (!validTypes.includes(messageType)) {
-      showToast("❌ Invalid type. Use: all, files, links, text");
-      return;
-    }
-
-    const channel = ctx?.channel;
-    if (!channel) {
-      showToast("❌ No channel found");
-      return;
-    }
-
-    const currentUser = getCurrentUser();
-    let targetUser = null;
-    
-    if (who === 'me') {
-      targetUser = currentUser;
-    } else if (who === 'everyone') {
-      targetUser = { id: 'everyone' };
-    } else {
-      targetUser = { id: who };
-    }
-
-    await deleteMessages(channel.id, messageType, targetUser);
-    
-  } catch (e) {
-    console.log("Command error:", e);
-    showToast("❌ Command execution failed");
-  }
-}
-
-export default {
-  onLoad: () => {
-    registerCommand({
-      name: "del",
-      description: "Delete messages in current channel",
-      options: [
-        {
-          name: "type",
-          description: "all, files, links, text",
-          type: 3,
-          required: true
-        },
-        {
-          name: "who",
-          description: "me, everyone, or user ID",
-          type: 3,
-          required: false
-        }
-      ],
-      execute: handleCommand
     });
-  },
-  onUnload: () => {
-    unregisterAllCommands();
-  }
 };
+
+export const onUnload = () => {
+    if (unpatch) unpatch();
+};
+
+// Helper function for after patches
+function after(target: string, obj: any, callback: any) {
+    const original = obj[target];
+    obj[target] = function(...args: any[]) {
+        const result = original.apply(this, args);
+        callback(result, ...args);
+        return result;
+    };
+    return () => {
+        obj[target] = original;
+    };
+}
