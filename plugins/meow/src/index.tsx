@@ -32,8 +32,14 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
 
             if (actionSheetContainer && actionSheetContainer[1]) {
                 const middleGroup = actionSheetContainer[1];
-                const ActionSheetRow = middleGroup.props.children[0].type;
-                const firstIcon = middleGroup.props.children[0].props.icon;
+                const children = middleGroup.props.children;
+                const ActionSheetRow = children[0].type;
+                const firstIcon = children[0].props.icon;
+
+                // البحث عن موقع زر Copy Message Link
+                const messageLinkIndex = children.findIndex((c: any) => 
+                    c?.props?.label?.toLowerCase().includes("message link")
+                );
 
                 const copyAction = () => {
                     LazyActionSheet.hideActionSheet();
@@ -41,7 +47,7 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
                     showToast("Copied Proxy Link", getAssetIDByName("toast_copy_link"));
                 };
 
-                middleGroup.props.children.push(
+                const newButton = (
                     <ActionSheetRow
                         label="Copy Proxy Link"
                         icon={{
@@ -53,7 +59,6 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
                                 IconComponent: () => (
                                     <FormIcon
                                         style={{ opacity: 1 }}
-                                        // جربنا ic_link_24px كما طلبت
                                         source={getAssetIDByName("ic_link_24px")}
                                     />
                                 ),
@@ -63,6 +68,13 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
                         key="copy-proxy-link"
                     />
                 );
+
+                // إذا وجدنا الزر، نحطه تحته (index + 1)، وإذا لم نجده نحطه في الأخير
+                if (messageLinkIndex !== -1) {
+                    children.splice(messageLinkIndex + 1, 0, newButton);
+                } else {
+                    children.push(newButton);
+                }
             }
         });
     });
