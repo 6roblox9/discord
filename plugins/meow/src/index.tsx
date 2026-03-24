@@ -54,7 +54,7 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
                                     <FormIcon
                                         style={{ opacity: 1 }}
                                         // جربنا ic_link_24px كما طلبت
-                                        source={getAssetIDByName("ic_link@2x")}
+                                        source={getAssetIDByName("ic_link_24px")}
                                     />
                                 ),
                             },
