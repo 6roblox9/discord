@@ -36,7 +36,6 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
                 const ActionSheetRow = children[0].type;
                 const firstIcon = children[0].props.icon;
 
-                // البحث عن موقع زر Copy Message Link
                 const messageLinkIndex = children.findIndex((c: any) => 
                     c?.props?.label?.toLowerCase().includes("message link")
                 );
@@ -69,7 +68,6 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
                     />
                 );
 
-                // إذا وجدنا الزر، نحطه تحته (index + 1)، وإذا لم نجده نحطه في الأخير
                 if (messageLinkIndex !== -1) {
                     children.splice(messageLinkIndex + 1, 0, newButton);
                 } else {
