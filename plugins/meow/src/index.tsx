@@ -44,7 +44,7 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
                 const copyAction = () => {
                     LazyActionSheet.hideActionSheet();
                     clipboard.setString(proxyUrl);
-                    showToast("Copied Proxy Link", getAssetIDByName("toast_copy_link"));
+                    showToast("Link Copied!", getAssetIDByName("LinkIcon"));
                 };
 
                 const newButton = (
