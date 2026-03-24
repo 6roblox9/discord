@@ -7,7 +7,7 @@ import { showToast } from "@vendetta/ui/toasts";
 import { Forms } from "@vendetta/ui/components";
 
 const LazyActionSheet = findByProps("openLazy", "hideActionSheet");
-const { FormRow, FormIcon } = Forms;
+const { FormIcon } = Forms;
 
 const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
     const message = msg?.message;
@@ -25,13 +25,15 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
         const unpatchAfter = after("default", instance, (_, component) => {
             React.useEffect(() => () => unpatchAfter(), []);
 
-            const actionSheetRows = findInReactTree(
+            const actionSheetContainer = findInReactTree(
                 component,
-                (x) => Array.isArray(x?.props?.children) && x?.type?.name === "ActionSheetRowGroup"
+                (x) => Array.isArray(x) && x[0]?.type?.name === "ActionSheetRowGroup",
             );
 
-            if (actionSheetRows) {
-                const ActionSheetRow = actionSheetRows.props.children[0].type;
+            if (actionSheetContainer && actionSheetContainer[1]) {
+                const middleGroup = actionSheetContainer[1];
+                const ActionSheetRow = middleGroup.props.children[0].type;
+                const firstIcon = middleGroup.props.children[0].props.icon;
 
                 const copyAction = () => {
                     LazyActionSheet.hideActionSheet();
@@ -39,21 +41,25 @@ const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
                     showToast("Copied Proxy Link", getAssetIDByName("toast_copy_link"));
                 };
 
-                // إنشاء الأيقونة بشكل مبسط لتجنب الـ Crash
-                const renderIcon = () => (
-                    <FormIcon
-                        style={{ opacity: 1 }}
-                        source={getAssetIDByName("ic_link")}
-                    />
-                );
-
-                actionSheetRows.props.children.push(
+                middleGroup.props.children.push(
                     <ActionSheetRow
                         label="Copy Proxy Link"
+                        icon={{
+                            $$typeof: firstIcon.$$typeof,
+                            type: firstIcon.type,
+                            key: null,
+                            ref: null,
+                            props: {
+                                IconComponent: () => (
+                                    <FormIcon
+                                        style={{ opacity: 1 }}
+                                        source={getAssetIDByName("ic_link")}
+                                    />
+                                ),
+                            },
+                        }}
                         onPress={copyAction}
                         key="copy-proxy-link"
-                        // الطريقة الأكثر أماناً لحقن الأيقونة في Vendetta
-                        icon={renderIcon()} 
                     />
                 );
             }
