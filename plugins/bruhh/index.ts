@@ -3,7 +3,6 @@ import { instead } from "@vendetta/patcher";
 
 const RestAPI = findByProps("get", "post", "del", "patch");
 const MessageActions = findByProps("editMessage");
-const MessageStore = findByProps("getMessage", "getMessages");
 
 let unpatchEditMessage: (() => void) | null = null;
 
@@ -13,7 +12,9 @@ export default {
             const [channelId, messageId, reqData] = args;
 
             try {
-                const origMsg = MessageStore?.getMessage(channelId, messageId);
+                const res = await RestAPI.get({ url: `/channels/${channelId}/messages/${messageId}` });
+                const rawMsg = res.body;
+
                 const body: any = {
                     content: reqData.content,
                     flags: 0,
@@ -22,22 +23,10 @@ export default {
                     tts: false,
                 };
 
-                if (origMsg?.messageReference) {
-                    const ref = origMsg.messageReference;
-                    body.message_reference = {
-                        message_id: ref.message_id || ref.messageId,
-                        channel_id: ref.channel_id || ref.channelId,
-                        guild_id: ref.guild_id || ref.guildId,
-                    };
-                }
-
-                if (origMsg?.attachments && origMsg.attachments.length > 0) {
-                    body.attachments = origMsg.attachments.map((a: any) => ({
-                        id: a.id,
-                        filename: a.filename,
-                        description: a.description
-                    }));
-                }
+                if (rawMsg.attachments) body.attachments = rawMsg.attachments;
+                if (rawMsg.embeds) body.embeds = rawMsg.embeds;
+                if (rawMsg.components) body.components = rawMsg.components;
+                if (rawMsg.message_reference) body.message_reference = rawMsg.message_reference;
 
                 const response = await RestAPI.post({
                     url: `/channels/${channelId}/messages`,
