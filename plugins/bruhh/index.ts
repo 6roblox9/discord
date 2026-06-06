@@ -1,6 +1,5 @@
 import { findByProps } from "@vendetta/metro";
 import { instead } from "@vendetta/patcher";
-import { showToast } from "@vendetta/ui/toasts";
 
 const RestAPI = findByProps("get", "post", "del", "patch");
 const MessageActions = findByProps("editMessage");
@@ -17,7 +16,7 @@ export default {
                 const rawMsg = MessageStore?.getMessage(channelId, messageId);
                 
                 if (!rawMsg) {
-                    return;
+                    return orig(...args);
                 }
 
                 const body: any = {
@@ -38,11 +37,20 @@ export default {
                 }
 
                 if (rawMsg.attachments && rawMsg.attachments.length > 0) {
-                    body.attachments = rawMsg.attachments.map((a: any) => ({
-                        id: a.id,
-                        filename: a.filename,
-                        description: a.description ?? ""
-                    }));
+                    body.attachments = rawMsg.attachments.map((a: any) => {
+                        let uploadedFilename = "";
+                        if (a.url) {
+                            const match = a.url.match(/\/attachments\/(.+?)(?:\?|$)/);
+                            if (match) {
+                                uploadedFilename = match[1];
+                            }
+                        }
+                        return {
+                            id: a.id,
+                            filename: a.filename,
+                            uploaded_filename: uploadedFilename
+                        };
+                    });
                 }
 
                 const response = await RestAPI.post({
@@ -52,9 +60,7 @@ export default {
                 
                 return response;
             } catch (err: any) {
-                const errorMsg = err?.body ? JSON.stringify(err.body) : String(err);
-                showToast("Discord API Error: " + errorMsg);
-                return;
+                return orig(...args);
             }
         });
     },
