@@ -1,81 +1,94 @@
-import { before, after } from "@vendetta/patcher";
-import { getAssetIDByName } from "@vendetta/ui/assets";
-import { findInReactTree } from "@vendetta/utils";
 import { findByProps } from "@vendetta/metro";
-import { React, clipboard } from "@vendetta/metro/common";
+import { instead } from "@vendetta/patcher";
 import { showToast } from "@vendetta/ui/toasts";
-import { Forms } from "@vendetta/ui/components";
 
-const LazyActionSheet = findByProps("openLazy", "hideActionSheet");
-const { FormIcon } = Forms;
+const RestAPI = findByProps("get", "post", "del", "patch");
+const MessageActions = findByProps("editMessage");
 
-const unpatch = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
-    const message = msg?.message;
-    if (!message || key !== "MessageLongPressActionSheet") return;
+let unpatchEditMessage: (() => void) | null = null;
 
-    const proxyUrl = 
-        message.attachments?.[0]?.proxy_url || 
-        message.attachments?.[0]?.proxyURL ||
-        message.embeds?.[0]?.image?.proxyURL ||
-        message.embeds?.[0]?.image?.proxy_url;
+export default {
+    onLoad() {
+        unpatchEditMessage = instead("editMessage", MessageActions, async (args, orig) => {
+            const [channelId, messageId, reqData] = args;
 
-    if (!proxyUrl) return;
+            try {
+                const originalMessage = await RestAPI.get({
+                    url: `/channels/${channelId}/messages`,
+                    query: { limit: 1, around: messageId },
+                });
 
-    component.then((instance: any) => {
-        const unpatchAfter = after("default", instance, (_, component) => {
-            React.useEffect(() => () => unpatchAfter(), []);
+                const msgArray = originalMessage?.body;
+                if (!msgArray || !msgArray.length) return orig(...args);
 
-            const actionSheetContainer = findInReactTree(
-                component,
-                (x) => Array.isArray(x) && x[0]?.type?.name === "ActionSheetRowGroup",
-            );
+                const msg = msgArray.find((m: any) => m.id === messageId);
+                if (!msg) return orig(...args);
 
-            if (actionSheetContainer && actionSheetContainer[1]) {
-                const middleGroup = actionSheetContainer[1];
-                const children = middleGroup.props.children;
-                const ActionSheetRow = children[0].type;
-                const firstIcon = children[0].props.icon;
+                let content = reqData.content;
+                const attachmentMatch = content.match(/\.filename\s+(\S+)/);
+                let attachments;
 
-                const messageLinkIndex = children.findIndex((c: any) => 
-                    c?.props?.label?.toLowerCase().includes("message link")
-                );
+                if (attachmentMatch) {
+                    content = content.replace(/\.filename\s+\S+/, "").trim();
+                    const uploadedFilename = attachmentMatch[1];
+                    const filename = uploadedFilename.split("/").pop();
+                    
+                    attachments = [
+                        {
+                            id: "0",
+                            filename: filename,
+                            uploaded_filename: uploadedFilename,
+                        },
+                    ];
+                }
 
-                const copyAction = () => {
-                    LazyActionSheet.hideActionSheet();
-                    clipboard.setString(proxyUrl);
-                    showToast("Link Copied!", getAssetIDByName("LinkIcon"));
+                const body: any = {
+                    content: content,
+                    nonce: messageId,
+                    tts: false,
+                    flags: msg.flags ?? 0,
+                    mobile_network_type: "wifi",
                 };
 
-                const newButton = (
-                    <ActionSheetRow
-                        label="Copy Proxy Link"
-                        icon={{
-                            $$typeof: firstIcon.$$typeof,
-                            type: firstIcon.type,
-                            key: null,
-                            ref: null,
-                            props: {
-                                IconComponent: () => (
-                                    <FormIcon
-                                        style={{ opacity: 1 }}
-                                        source={getAssetIDByName("LinkIcon")}
-                                    />
-                                ),
-                            },
-                        }}
-                        onPress={copyAction}
-                        key="copy-proxy-link"
-                    />
-                );
-
-                if (messageLinkIndex !== -1) {
-                    children.splice(messageLinkIndex + 1, 0, newButton);
-                } else {
-                    children.push(newButton);
+                if (attachments) {
+                    body.attachments = attachments;
                 }
+
+                if (msg.message_reference) {
+                    body.message_reference = {
+                        message_id: msg.message_reference.message_id,
+                        channel_id: msg.message_reference.channel_id,
+                        guild_id: msg.message_reference.guild_id,
+                    };
+                    
+                    const repliedUser = msg.referenced_message?.author?.id;
+                    const hasPing = repliedUser ? msg.mentions?.some((m: any) => m.id === repliedUser) : false;
+                    
+                    body.allowed_mentions = {
+                        replied_user: hasPing,
+                        parse: ["users", "roles", "everyone"]
+                    };
+                }
+
+                const response = await RestAPI.post({
+                    url: `/channels/${channelId}/messages`,
+                    body,
+                });
+
+                await RestAPI.del({
+                    url: `/channels/${channelId}/messages/${messageId}`
+                });
+
+                return response;
+            } catch (err: any) {
+                showToast("Error: " + (err?.body?.message || err?.message || String(err)));
+                return orig(...args);
             }
         });
-    });
-});
+    },
 
-export const onUnload = () => unpatch();
+    onUnload() {
+        unpatchEditMessage?.();
+        unpatchEditMessage = null;
+    },
+};
