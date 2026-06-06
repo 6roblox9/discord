@@ -24,8 +24,6 @@ export default {
                 const msg = msgArray.find((m: any) => m.id === messageId);
                 if (!msg) return orig(...args);
 
-                showToast(JSON.stringify(msg.attachments));
-
                 const body: any = {
                     content: reqData.content,
                     nonce: messageId,
@@ -50,11 +48,18 @@ export default {
                 }
 
                 if (msg.attachments && msg.attachments.length > 0) {
-                    body.attachments = msg.attachments.map((att: any) => ({
-                        id: "0",
-                        filename: att.filename,
-                        uploaded_filename: "tmp",
-                    }));
+                    body.attachments = msg.attachments.map((att: any) => {
+                        const urlParts = att.url.split("/");
+                        const channelIdFromUrl = urlParts[4];
+                        const attachmentId = att.id;
+                        const filename = urlParts[5];
+                        
+                        return {
+                            id: "0",
+                            filename: att.filename,
+                            uploaded_filename: `${channelIdFromUrl}/${attachmentId}/${filename}`,
+                        };
+                    });
                 }
 
                 if (msg.sticker_items && msg.sticker_items.length > 0) {
