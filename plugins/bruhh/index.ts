@@ -61,14 +61,15 @@ export default {
                         guild_id: msg.message_reference.guild_id,
                     };
                     
-                    const repliedUserId = msg.message_reference.message_id;
-                    const hasPing = msg.mentions?.some((m: any) => m.id === repliedUserId);
+                    // تحديد ما إذا كان الرد الأصلي يحتوي على منشن للمستخدم أم لا بشكل دقيق
+                    const repliedUser = msg.referenced_message?.author?.id;
+                    const hasPing = repliedUser ? msg.mentions?.some((m: any) => m.id === repliedUser) : false;
                     
-                    if (hasPing) {
-                        body.allowed_mentions = {
-                            replied_user: true,
-                        };
-                    }
+                    // نرسل الحالة صراحة لديسكورد (إما true أو false) حتى لا يطبق خياره الافتراضي
+                    body.allowed_mentions = {
+                        replied_user: hasPing,
+                        parse: ["users", "roles", "everyone"] // السماح بالمنشنز العادية داخل النص إن وجدت
+                    };
                 }
 
                 const response = await RestAPI.post({
