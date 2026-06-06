@@ -1,12 +1,11 @@
 import { findByProps } from "@vendetta/metro";
-import { before, after } from "@vendetta/patcher";
+import { before, after, instead } from "@vendetta/patcher";
 import { React } from "@vendetta/metro/common";
 import { findInReactTree } from "@vendetta/utils";
 import { getAssetIDByName } from "@vendetta/ui/assets";
 import { showToast } from "@vendetta/ui/toasts";
-import { showInputAlert } from "@vendetta/ui/alerts";
 
-const APIUtils = findByProps("getAPIBaseURL", "del");
+const RestAPI = findByProps("get", "post", "del", "patch");
 const ActionSheet = findByProps("openLazy", "hideActionSheet");
 const { ActionSheetRow } = findByProps("ActionSheetRow");
 
@@ -16,38 +15,44 @@ const EditIcon =
     getAssetIDByName("pencil") ??
     getAssetIDByName("ic_edit");
 
-async function fakeEditMessage(channelId: string, messageId: string, originalContent: string) {
-    showInputAlert({
-        title: "Fake Edit",
-        initialValue: originalContent,
-        placeholder: "Enter new text...",
-        confirmText: "Edit",
-        cancelText: "Cancel",
-        onConfirm: async (newContent: string) => {
-            if (!newContent || newContent === originalContent) return;
-            try {
-                await APIUtils.post({
-                    url: `/channels/${channelId}/messages`,
-                    body: {
-                        content: newContent,
-                        flags: 4096,
-                        mobile_network_type: "unknown",
-                        nonce: messageId,
-                        tts: false,
-                    }
-                });
-                showToast("Fake Edit Success!");
-            } catch (err: any) {
-                showToast("Error: " + (err?.body ? JSON.stringify(err.body) : String(err)));
-            }
-        }
-    });
-}
-
 let unpatchOpenLazy: (() => void) | null = null;
+let unpatchPatch: (() => void) | null = null;
+let fakeEditMessageId: string | null = null;
 
 export default {
     onLoad() {
+        unpatchPatch = instead("patch", RestAPI, async (args, orig) => {
+            const req = args[0];
+            const urlMatch = req.url?.match(/\/channels\/(\d+)\/messages\/(\d+)/);
+            
+            if (urlMatch) {
+                const channelId = urlMatch[1];
+                const messageId = urlMatch[2];
+                
+                if (fakeEditMessageId === messageId) {
+                    fakeEditMessageId = null;
+                    try {
+                        const response = await RestAPI.post({
+                            url: `/channels/${channelId}/messages`,
+                            body: {
+                                content: req.body.content,
+                                flags: 4096,
+                                mobile_network_type: "unknown",
+                                nonce: messageId,
+                                tts: false,
+                            }
+                        });
+                        showToast("Fake Edit Success!");
+                        return response; 
+                    } catch (err: any) {
+                        showToast("Error: " + (err?.body ? JSON.stringify(err.body) : String(err)));
+                        return { status: 400, body: err };
+                    }
+                }
+            }
+            return orig(...args);
+        });
+
         unpatchOpenLazy = before("openLazy", ActionSheet, ([comp, args, msg]) => {
             if (args !== "MessageLongPressActionSheet" || !msg?.message) return;
 
@@ -55,9 +60,7 @@ export default {
             const currentUser = UserStore?.getCurrentUser();
             if (!currentUser || msg.message.author?.id !== currentUser.id) return;
 
-            const channelId: string = msg.message.channel_id;
             const messageId: string = msg.message.id;
-            const originalContent: string = msg.message.content || "";
 
             comp.then((instance: any) => {
                 const unpatch = after("default", instance, (_: any, component: any) => {
@@ -70,18 +73,9 @@ export default {
 
                     if (!groups?.length) return;
 
-                    const fakeEditButton = React.createElement(ActionSheetRow, {
-                        label: "Fake Edit",
-                        icon: React.createElement(ActionSheetRow.Icon, {
-                            source: EditIcon,
-                        }),
-                        onPress: () => {
-                            ActionSheet.hideActionSheet();
-                            fakeEditMessage(channelId, messageId, originalContent);
-                        },
-                    });
+                    let originalEditRow: any = null;
+                    let targetGroupIndex = -1;
 
-                    let inserted = false;
                     for (let gi = 0; gi < groups.length; gi++) {
                         const groupChildren: any[] = findInReactTree(
                             groups[gi],
@@ -97,17 +91,35 @@ export default {
                         });
 
                         if (editRowIndex >= 0) {
-                            groupChildren.splice(editRowIndex + 1, 0, fakeEditButton);
-                            inserted = true;
+                            originalEditRow = groupChildren[editRowIndex];
+                            targetGroupIndex = gi;
                             break;
                         }
                     }
 
-                    if (!inserted) {
-                        const insertAt = Math.max(0, groups.length - 1);
-                        groups.splice(insertAt, 0,
-                            React.createElement(ActionSheetRow.Group, null, fakeEditButton)
-                        );
+                    if (!originalEditRow) return;
+
+                    const fakeEditButton = React.createElement(ActionSheetRow, {
+                        label: "Fake Edit",
+                        icon: React.createElement(ActionSheetRow.Icon, {
+                            source: EditIcon,
+                        }),
+                        onPress: () => {
+                            fakeEditMessageId = messageId;
+                            if (typeof originalEditRow.props.onPress === "function") {
+                                originalEditRow.props.onPress();
+                            }
+                        },
+                    });
+
+                    const targetChildren = findInReactTree(
+                        groups[targetGroupIndex],
+                        (c: any) => Array.isArray(c) && c.includes(originalEditRow)
+                    );
+
+                    if (targetChildren) {
+                        const insertIndex = targetChildren.indexOf(originalEditRow) + 1;
+                        targetChildren.splice(insertIndex, 0, fakeEditButton);
                     }
                 });
             });
@@ -116,6 +128,8 @@ export default {
 
     onUnload() {
         unpatchOpenLazy?.();
+        unpatchPatch?.();
         unpatchOpenLazy = null;
+        unpatchPatch = null;
     },
 };
