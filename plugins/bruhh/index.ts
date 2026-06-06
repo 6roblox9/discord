@@ -3,6 +3,7 @@ import { instead } from "@vendetta/patcher";
 
 const RestAPI = findByProps("get", "post", "del", "patch");
 const MessageActions = findByProps("editMessage");
+const MessageStore = findByProps("getMessage", "getMessages");
 
 let unpatchEditMessage: (() => void) | null = null;
 
@@ -12,15 +13,27 @@ export default {
             const [channelId, messageId, reqData] = args;
 
             try {
+                const origMsg = MessageStore?.getMessage(channelId, messageId);
+                const body: any = {
+                    content: reqData.content,
+                    flags: 0,
+                    mobile_network_type: "unknown",
+                    nonce: messageId,
+                    tts: false,
+                };
+
+                if (origMsg?.messageReference) {
+                    const ref = origMsg.messageReference;
+                    body.message_reference = {
+                        message_id: ref.message_id || ref.messageId,
+                        channel_id: ref.channel_id || ref.channelId,
+                        guild_id: ref.guild_id || ref.guildId,
+                    };
+                }
+
                 const response = await RestAPI.post({
                     url: `/channels/${channelId}/messages`,
-                    body: {
-                        content: reqData.content,
-                        flags: 0,
-                        mobile_network_type: "unknown",
-                        nonce: messageId,
-                        tts: false,
-                    }
+                    body: body
                 });
                 return response;
             } catch (err: any) {
