@@ -3,7 +3,6 @@ import { instead } from "@vendetta/patcher";
 
 const RestAPI = findByProps("get", "post", "del", "patch");
 const MessageActions = findByProps("editMessage");
-const MessageStore = findByProps("getMessage", "getMessages");
 
 let unpatchEditMessage: (() => void) | null = null;
 
@@ -12,52 +11,56 @@ export default {
         unpatchEditMessage = instead("editMessage", MessageActions, async (args, orig) => {
             const [channelId, messageId, reqData] = args;
 
-            const originalMessage = MessageStore.getMessage(channelId, messageId);
-
-            if (!originalMessage) {
-                return orig(...args);
-            }
-
             try {
-                const newMessageData: any = {
-                    mobile_network_type: "unknown",
+                const originalMessage = await RestAPI.get({
+                    url: `/channels/${channelId}/messages`,
+                    query: { limit: 1, around: messageId },
+                });
+
+                const msgArray = originalMessage?.body;
+                if (!msgArray || !msgArray.length) return orig(...args);
+
+                const msg = msgArray.find((m: any) => m.id === messageId);
+                if (!msg) return orig(...args);
+
+                const body: any = {
                     content: reqData.content,
                     nonce: messageId,
                     tts: false,
-                    flags: originalMessage.flags || 0,
+                    flags: msg.flags ?? 0,
+                    mobile_network_type: "unknown",
                 };
 
-                if (originalMessage.messageReference || originalMessage.message_reference) {
-                    const ref = originalMessage.messageReference || originalMessage.message_reference;
-                    newMessageData.message_reference = {
-                        message_id: ref.messageId || ref.message_id,
-                        channel_id: ref.channelId || ref.channel_id,
-                        guild_id: ref.guildId || ref.guild_id,
+                if (msg.message_reference) {
+                    body.message_reference = {
+                        message_id: msg.message_reference.message_id,
+                        channel_id: msg.message_reference.channel_id,
+                        guild_id: msg.message_reference.guild_id,
                     };
                 }
 
-                if (originalMessage.attachments && originalMessage.attachments.length > 0) {
-                    newMessageData.attachments = originalMessage.attachments.map((att: any) => ({
-                        id: att.id,
+                if (msg.attachments && msg.attachments.length > 0) {
+                    body.attachments = msg.attachments.map((att: any) => ({
+                        id: "0",
                         filename: att.filename,
+                        uploaded_filename: att.uploaded_filename || `${Date.now()}/${att.filename}`,
+                        description: att.description,
+                        duration_secs: att.duration_secs,
+                        waveform: att.waveform,
                     }));
                 }
 
-                if (originalMessage.stickerIds || originalMessage.sticker_ids) {
-                    newMessageData.sticker_ids = originalMessage.stickerIds || originalMessage.sticker_ids;
-                }
-
-                if (originalMessage.embeds && originalMessage.embeds.length > 0) {
-                    newMessageData.embeds = originalMessage.embeds;
+                if (msg.sticker_items && msg.sticker_items.length > 0) {
+                    body.sticker_ids = msg.sticker_items.map((s: any) => s.id);
                 }
 
                 const response = await RestAPI.post({
                     url: `/channels/${channelId}/messages`,
-                    body: newMessageData,
+                    body,
                 });
 
                 return response;
-            } catch (err: any) {
+            } catch (err) {
                 return orig(...args);
             }
         });
