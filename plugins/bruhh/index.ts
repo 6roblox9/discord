@@ -60,13 +60,12 @@ export default {
                         channel_id: msg.message_reference.channel_id,
                         guild_id: msg.message_reference.guild_id,
                     };
-
-                    const repliedUserMentioned = msg.mentions?.some(
-                        (m: any) => m.id === msg.message_reference.message_id
-                    );
-                    body.allowed_mentions = {
-                        replied_user: !!repliedUserMentioned,
-                    };
+                    
+                    if (msg.mentioned) {
+                        body.allowed_mentions = {
+                            replied_user: true,
+                        };
+                    }
                 }
 
                 const response = await RestAPI.post({
