@@ -1,6 +1,5 @@
 import { findByProps } from "@vendetta/metro";
 import { instead } from "@vendetta/patcher";
-import { showToast } from "@vendetta/ui/toasts";
 
 const RestAPI = findByProps("get", "post", "del", "patch");
 const MessageActions = findByProps("editMessage");
@@ -13,11 +12,10 @@ export default {
         unpatchEditMessage = instead("editMessage", MessageActions, async (args, orig) => {
             const [channelId, messageId, reqData] = args;
 
-            const originalMessage = MessageStore?.getMessage(channelId, messageId);
+            const originalMessage = MessageStore.getMessage(channelId, messageId);
 
             if (!originalMessage) {
-                showToast("Error: Message not found in cache");
-                return;
+                return orig(...args);
             }
 
             try {
@@ -29,8 +27,8 @@ export default {
                     flags: originalMessage.flags || 0,
                 };
 
-                const ref = originalMessage.messageReference || originalMessage.message_reference;
-                if (ref) {
+                if (originalMessage.messageReference || originalMessage.message_reference) {
+                    const ref = originalMessage.messageReference || originalMessage.message_reference;
                     newMessageData.message_reference = {
                         message_id: ref.messageId || ref.message_id,
                         channel_id: ref.channelId || ref.channel_id,
@@ -58,12 +56,9 @@ export default {
                     body: newMessageData,
                 });
 
-                showToast("Silent Edit Success!");
                 return response;
             } catch (err: any) {
-                const errorMsg = err?.body ? JSON.stringify(err.body) : String(err);
-                showToast("Discord Rejected: " + errorMsg);
-                return;
+                return orig(...args);
             }
         });
     },
