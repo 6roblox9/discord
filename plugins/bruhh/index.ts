@@ -24,6 +24,8 @@ export default {
                 const msg = msgArray.find((m: any) => m.id === messageId);
                 if (!msg) return orig(...args);
 
+                showToast(JSON.stringify(msg.attachments));
+
                 const body: any = {
                     content: reqData.content,
                     nonce: messageId,
@@ -48,19 +50,11 @@ export default {
                 }
 
                 if (msg.attachments && msg.attachments.length > 0) {
-                    body.attachments = msg.attachments.map((att: any) => {
-                        const urlObj = new URL(att.url);
-                        const pathParts = urlObj.pathname.split("/");
-                        const channelIdFromUrl = pathParts[3];
-                        const attachmentId = pathParts[4];
-                        const filename = pathParts[5];
-                        
-                        return {
-                            id: "0",
-                            filename: att.filename,
-                            uploaded_filename: `${channelIdFromUrl}/${attachmentId}/${filename}`,
-                        };
-                    });
+                    body.attachments = msg.attachments.map((att: any) => ({
+                        id: "0",
+                        filename: att.filename,
+                        uploaded_filename: "tmp",
+                    }));
                 }
 
                 if (msg.sticker_items && msg.sticker_items.length > 0) {
@@ -72,11 +66,9 @@ export default {
                     body,
                 });
 
-                showToast("Fake Edit Success!");
                 return response;
             } catch (err: any) {
-                const errorMsg = err?.body?.message || err?.message || String(err);
-                showToast("Fake Edit Error: " + errorMsg);
+                showToast("Error: " + (err?.body?.message || err?.message || String(err)));
                 return orig(...args);
             }
         });
