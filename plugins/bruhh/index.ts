@@ -3,6 +3,7 @@ import { instead } from "@vendetta/patcher";
 
 const RestAPI = findByProps("get", "post", "del", "patch");
 const MessageActions = findByProps("editMessage");
+const MessageStore = findByProps("getMessage", "getMessages");
 
 let unpatchEditMessage: (() => void) | null = null;
 
@@ -12,21 +13,36 @@ export default {
             const [channelId, messageId, reqData] = args;
 
             try {
-                const res = await RestAPI.get({ url: `/channels/${channelId}/messages/${messageId}` });
-                const rawMsg = res.body;
+                const origMsg = MessageStore?.getMessage(channelId, messageId);
+                let finalContent = reqData.content || "";
+
+                if (origMsg?.attachments && origMsg.attachments.length > 0) {
+                    const attachmentUrls = origMsg.attachments
+                        .map((a: any) => a.url)
+                        .filter(Boolean)
+                        .join("\n");
+                    
+                    if (attachmentUrls) {
+                        finalContent += "\n" + attachmentUrls;
+                    }
+                }
 
                 const body: any = {
-                    content: reqData.content,
+                    content: finalContent,
                     flags: 0,
                     mobile_network_type: "unknown",
                     nonce: messageId,
                     tts: false,
                 };
 
-                if (rawMsg.attachments) body.attachments = rawMsg.attachments;
-                if (rawMsg.embeds) body.embeds = rawMsg.embeds;
-                if (rawMsg.components) body.components = rawMsg.components;
-                if (rawMsg.message_reference) body.message_reference = rawMsg.message_reference;
+                if (origMsg?.messageReference) {
+                    const ref = origMsg.messageReference;
+                    body.message_reference = {
+                        message_id: ref.message_id || ref.messageId,
+                        channel_id: ref.channel_id || ref.channelId,
+                        guild_id: ref.guild_id || ref.guildId,
+                    };
+                }
 
                 const response = await RestAPI.post({
                     url: `/channels/${channelId}/messages`,
