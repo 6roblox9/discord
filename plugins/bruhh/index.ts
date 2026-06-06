@@ -3,81 +3,83 @@ import { instead } from "@vendetta/patcher";
 import { showToast } from "@vendetta/ui/toasts";
 
 const RestAPI = findByProps("get", "post", "del", "patch");
-const MessageActions = findByProps("editMessage");
 const MessageStore = findByProps("getMessage", "getMessages");
 
-let unpatchEditMessage: (() => void) | null = null;
+let unpatchPatch: (() => void) | null = null;
 
 export default {
     onLoad() {
-        unpatchEditMessage = instead("editMessage", MessageActions, async (args, orig) => {
-            const [channelId, messageId, reqData] = args;
-
-            try {
-                let rawMsg = MessageStore?.getMessage(channelId, messageId);
-                
-                if (!rawMsg) {
-                    const res = await RestAPI.get({ url: `/channels/${channelId}/messages?limit=1&around=${messageId}` });
-                    if (res.body && res.body.length > 0) {
-                        rawMsg = res.body[0];
-                    }
-                }
-
-                if (!rawMsg) {
-                    showToast("Error: Message not found");
-                    return;
-                }
-
-                const body: any = {
-                    content: reqData.content,
-                    nonce: messageId,
-                    flags: rawMsg.flags ?? 0,
-                    mobile_network_type: "unknown",
-                    tts: rawMsg.tts ?? false
-                };
-
-                const ref = rawMsg.messageReference || rawMsg.message_reference;
-                if (ref) {
-                    body.message_reference = {
-                        message_id: ref.message_id || ref.messageId,
-                        channel_id: ref.channel_id || ref.channelId,
-                        guild_id: ref.guild_id || ref.guildId,
-                    };
-                }
-
-                if (rawMsg.attachments && rawMsg.attachments.length > 0) {
-                    body.attachments = rawMsg.attachments.map((a: any, index: number) => {
-                        let uploadedFilename = "";
-                        if (a.url) {
-                            const match = a.url.match(/\/attachments\/(.+?)(?:\?|$)/);
-                            if (match) {
-                                uploadedFilename = match[1];
-                            }
-                        }
-                        return {
-                            id: String(index),
-                            filename: a.filename,
-                            uploaded_filename: uploadedFilename
-                        };
-                    });
-                }
-
-                const response = await RestAPI.post({
-                    url: `/channels/${channelId}/messages`,
-                    body: body
-                });
-                
-                return response;
-            } catch (err: any) {
-                const errorMsg = err?.body ? JSON.stringify(err.body) : String(err);
-                showToast("API Error: " + errorMsg);
-                return;
+        unpatchPatch = instead("patch", RestAPI, async (args, orig) => {
+            let reqUrl = "";
+            let reqBody: any = {};
+            
+            if (args[0] && typeof args[0] === "string") {
+                reqUrl = args[0];
+                reqBody = args[1]?.body ?? args[1] ?? {};
+            } else if (args[0] && typeof args[0] === "object") {
+                reqUrl = args[0].url ?? "";
+                reqBody = args[0].body ?? {};
             }
+
+            if (typeof reqBody === "string") {
+                try { reqBody = JSON.parse(reqBody); } catch (e) {}
+            }
+
+            const urlMatch = reqUrl.match(/\/channels\/(\d+)\/messages\/(\d+)/);
+            
+            if (urlMatch) {
+                const channelId = urlMatch[1];
+                const messageId = urlMatch[2];
+                
+                try {
+                    const rawMsg = MessageStore?.getMessage(channelId, messageId);
+                    
+                    if (rawMsg?.attachments && rawMsg.attachments.length > 0) {
+                        showToast("Media detected: Falling back to normal edit.");
+                        return orig(...args);
+                    }
+
+                    const body: any = {
+                        content: reqBody.content,
+                        nonce: messageId,
+                        flags: rawMsg?.flags ?? 0,
+                        mobile_network_type: "unknown",
+                        tts: rawMsg?.tts ?? false
+                    };
+
+                    const ref = rawMsg?.messageReference || rawMsg?.message_reference;
+                    if (ref) {
+                        body.message_reference = {
+                            message_id: ref.message_id || ref.messageId,
+                            channel_id: ref.channel_id || ref.channelId,
+                            guild_id: ref.guild_id || ref.guildId,
+                        };
+                    }
+
+                    const response = await RestAPI.post({
+                        url: `/channels/${channelId}/messages`,
+                        body: body
+                    });
+                    
+                    if (response && response.body) {
+                        response.body.id = messageId;
+                    }
+                    
+                    showToast("Silent Edit Success!");
+                    return response; 
+                } catch (err: any) {
+                    const errorMsg = err?.body ? JSON.stringify(err.body) : String(err);
+                    showToast("API Error: " + errorMsg);
+                    throw err;
+                }
+            }
+
+            return orig(...args);
         });
     },
 
     onUnload() {
-        unpatchEditMessage?.();
-        unpatchEditMessage = null;
+        unpatchPatch?.();
+        unpatchPatch = null;
     },
 };
