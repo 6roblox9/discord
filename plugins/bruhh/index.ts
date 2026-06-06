@@ -1,94 +1,94 @@
 import { findByProps } from "@vendetta/metro";
-import { React } from "@vendetta/metro/common";
-import { after, before } from "@vendetta/patcher";
-import { findInReactTree } from "@vendetta/utils";
-import { getAssetIDByName } from "@vendetta/ui/assets";
-import { Forms } from "@vendetta/ui/components";
+import { instead } from "@vendetta/patcher";
 import { showToast } from "@vendetta/ui/toasts";
 
-const LazyActionSheet = findByProps("openLazy", "hideActionSheet");
 const RestAPI = findByProps("get", "post", "del", "patch");
-const { FormIcon } = Forms;
+const MessageActions = findByProps("editMessage");
 
-let unpatchActionSheet: (() => void) | null = null;
+let unpatchEditMessage: (() => void) | null = null;
 
 export default {
     onLoad() {
-        unpatchActionSheet = before("openLazy", LazyActionSheet, ([component, key, msg]) => {
-            const message = msg?.message;
-            if (key !== "MessageLongPressActionSheet" || !message) return;
+        unpatchEditMessage = instead("editMessage", MessageActions, async (args, orig) => {
+            const [channelId, messageId, reqData] = args;
 
-            const hasMedia = (message.attachments && message.attachments.length > 0) || (message.embeds && message.embeds.length > 0);
-            if (!hasMedia) return;
-
-            component.then((instance: any) => {
-                const unpatch = after("default", instance, (_, comp) => {
-                    React.useEffect(() => () => unpatch(), []);
-
-                    const actionSheetContainer = findInReactTree(
-                        comp,
-                        (x) => Array.isArray(x) && x[0]?.type?.name === "ActionSheetRowGroup"
-                    );
-
-                    if (actionSheetContainer && actionSheetContainer[1]) {
-                        const middleGroup = actionSheetContainer[1];
-                        const ActionSheetRow = middleGroup.props.children[0]?.type;
-
-                        if (!ActionSheetRow) return;
-
-                        const removeMediaBtn = (
-                            <ActionSheetRow
-                                label="Remove Media"
-                                icon={{
-                                    $$typeof: middleGroup.props.children[0].props.icon.$$typeof,
-                                    type: middleGroup.props.children[0].props.icon.type,
-                                    key: null,
-                                    ref: null,
-                                    props: {
-                                        IconComponent: () => (
-                                            <FormIcon
-                                                style={{ opacity: 1 }}
-                                                source={getAssetIDByName("trash") || getAssetIDByName("ic_trash_24px")}
-                                            />
-                                        ),
-                                    },
-                                }}
-                                onPress={async () => {
-                                    LazyActionSheet.hideActionSheet();
-                                    
-                                    let content = message.content || "";
-                                    if (content.trim() === "") {
-                                        content = "** **";
-                                    }
-
-                                    try {
-                                        await RestAPI.patch({
-                                            url: `/channels/${message.channel_id}/messages/${message.id}`,
-                                            body: {
-                                                content: content,
-                                                attachments: [],
-                                                embeds: [],
-                                                flags: message.flags ?? 0
-                                            }
-                                        });
-                                        showToast("Media removed successfully!");
-                                    } catch (err: any) {
-                                        showToast("Error: " + (err?.body?.message || err?.message || String(err)));
-                                    }
-                                }}
-                                key="remove-media"
-                            />
-                        );
-
-                        middleGroup.props.children.push(removeMediaBtn);
-                    }
+            try {
+                const originalMessage = await RestAPI.get({
+                    url: `/channels/${channelId}/messages`,
+                    query: { limit: 1, around: messageId },
                 });
-            });
+
+                const msgArray = originalMessage?.body;
+                if (!msgArray || !msgArray.length) return orig(...args);
+
+                const msg = msgArray.find((m: any) => m.id === messageId);
+                if (!msg) return orig(...args);
+
+                let content = reqData.content;
+                const attachmentMatch = content.match(/\.filename\s+(\S+)/);
+                let attachments;
+
+                if (attachmentMatch) {
+                    content = content.replace(/\.filename\s+\S+/, "").trim();
+                    const uploadedFilename = attachmentMatch[1];
+                    const filename = uploadedFilename.split("/").pop();
+                    
+                    attachments = [
+                        {
+                            id: "0",
+                            filename: filename,
+                            uploaded_filename: uploadedFilename,
+                        },
+                    ];
+                }
+
+                const body: any = {
+                    content: content,
+                    nonce: messageId,
+                    tts: false,
+                    flags: msg.flags ?? 0,
+                    mobile_network_type: "wifi",
+                };
+
+                if (attachments) {
+                    body.attachments = attachments;
+                }
+
+                if (msg.message_reference) {
+                    body.message_reference = {
+                        message_id: msg.message_reference.message_id,
+                        channel_id: msg.message_reference.channel_id,
+                        guild_id: msg.message_reference.guild_id,
+                    };
+                    
+                    const repliedUser = msg.referenced_message?.author?.id;
+                    const hasPing = repliedUser ? msg.mentions?.some((m: any) => m.id === repliedUser) : false;
+                    
+                    body.allowed_mentions = {
+                        replied_user: hasPing,
+                        parse: ["users", "roles", "everyone"]
+                    };
+                }
+
+                const response = await RestAPI.post({
+                    url: `/channels/${channelId}/messages`,
+                    body,
+                });
+
+                await RestAPI.del({
+                    url: `/channels/${channelId}/messages/${messageId}`
+                });
+
+                return response;
+            } catch (err: any) {
+                showToast("Error: " + (err?.body?.message || err?.message || String(err)));
+                return orig(...args);
+            }
         });
     },
 
     onUnload() {
-        unpatchActionSheet?.();
-        unpatchActionSheet = null;
-    }
+        unpatchEditMessage?.();
+        unpatchEditMessage = null;
+    },
 };
