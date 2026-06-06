@@ -6,6 +6,7 @@ import { getAssetIDByName } from "@vendetta/ui/assets";
 import { showToast } from "@vendetta/ui/toasts";
 
 const RestAPI = findByProps("get", "post", "del", "patch");
+const MessageActions = findByProps("editMessage");
 const ActionSheet = findByProps("openLazy", "hideActionSheet");
 const { ActionSheetRow } = findByProps("ActionSheetRow");
 
@@ -16,39 +17,32 @@ const EditIcon =
     getAssetIDByName("ic_edit");
 
 let unpatchOpenLazy: (() => void) | null = null;
-let unpatchPatch: (() => void) | null = null;
+let unpatchEditMessage: (() => void) | null = null;
 let pendingFakeEdit: { channelId: string; messageId: string } | null = null;
 
 export default {
     onLoad() {
-        unpatchPatch = instead("patch", RestAPI, async (args, orig) => {
-            const req = args[0];
-            const urlMatch = req.url?.match(/\/channels\/(\d+)\/messages\/(\d+)/);
-            
-            if (urlMatch && pendingFakeEdit) {
-                const messageId = urlMatch[2];
-                
-                if (pendingFakeEdit.messageId === messageId) {
-                    const { channelId } = pendingFakeEdit;
-                    pendingFakeEdit = null;
-                    
-                    try {
-                        const response = await RestAPI.post({
-                            url: `/channels/${channelId}/messages`,
-                            body: {
-                                content: req.body.content,
-                                flags: 4096,
-                                mobile_network_type: "unknown",
-                                nonce: messageId,
-                                tts: false,
-                            }
-                        });
-                        showToast("Fake Edit Success!");
-                        return response;
-                    } catch (err: any) {
-                        showToast("Error: " + (err?.body ? JSON.stringify(err.body) : String(err)));
-                        return { status: 400, body: err };
-                    }
+        unpatchEditMessage = instead("editMessage", MessageActions, async (args, orig) => {
+            const [channelId, messageId, reqData] = args;
+
+            if (pendingFakeEdit && pendingFakeEdit.messageId === messageId) {
+                pendingFakeEdit = null;
+                try {
+                    const response = await RestAPI.post({
+                        url: `/channels/${channelId}/messages`,
+                        body: {
+                            content: reqData.content,
+                            flags: 4096,
+                            mobile_network_type: "unknown",
+                            nonce: messageId,
+                            tts: false,
+                        }
+                    });
+                    showToast("Fake Edit Success!");
+                    return response;
+                } catch (err: any) {
+                    showToast("Error: " + (err?.body ? JSON.stringify(err.body) : String(err)));
+                    return;
                 }
             }
             return orig(...args);
@@ -131,8 +125,8 @@ export default {
 
     onUnload() {
         unpatchOpenLazy?.();
-        unpatchPatch?.();
+        unpatchEditMessage?.();
         unpatchOpenLazy = null;
-        unpatchPatch = null;
+        unpatchEditMessage = null;
     },
 };
