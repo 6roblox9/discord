@@ -17,7 +17,7 @@ const EditIcon =
 
 let unpatchOpenLazy: (() => void) | null = null;
 let unpatchPatch: (() => void) | null = null;
-let fakeEditMessageId: string | null = null;
+let pendingFakeEdit: { channelId: string; messageId: string } | null = null;
 
 export default {
     onLoad() {
@@ -25,12 +25,13 @@ export default {
             const req = args[0];
             const urlMatch = req.url?.match(/\/channels\/(\d+)\/messages\/(\d+)/);
             
-            if (urlMatch) {
-                const channelId = urlMatch[1];
+            if (urlMatch && pendingFakeEdit) {
                 const messageId = urlMatch[2];
                 
-                if (fakeEditMessageId === messageId) {
-                    fakeEditMessageId = null;
+                if (pendingFakeEdit.messageId === messageId) {
+                    const { channelId } = pendingFakeEdit;
+                    pendingFakeEdit = null;
+                    
                     try {
                         const response = await RestAPI.post({
                             url: `/channels/${channelId}/messages`,
@@ -43,7 +44,7 @@ export default {
                             }
                         });
                         showToast("Fake Edit Success!");
-                        return response; 
+                        return response;
                     } catch (err: any) {
                         showToast("Error: " + (err?.body ? JSON.stringify(err.body) : String(err)));
                         return { status: 400, body: err };
@@ -60,6 +61,7 @@ export default {
             const currentUser = UserStore?.getCurrentUser();
             if (!currentUser || msg.message.author?.id !== currentUser.id) return;
 
+            const channelId: string = msg.message.channel_id;
             const messageId: string = msg.message.id;
 
             comp.then((instance: any) => {
@@ -105,7 +107,8 @@ export default {
                             source: EditIcon,
                         }),
                         onPress: () => {
-                            fakeEditMessageId = messageId;
+                            pendingFakeEdit = { channelId, messageId };
+                            ActionSheet.hideActionSheet();
                             if (typeof originalEditRow.props.onPress === "function") {
                                 originalEditRow.props.onPress();
                             }
