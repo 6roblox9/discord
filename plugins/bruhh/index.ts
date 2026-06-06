@@ -1,6 +1,7 @@
 import { findByProps } from "@vendetta/metro";
 import { instead } from "@vendetta/patcher";
 import { logger } from "@vendetta";
+import { showToast } from "@vendetta/ui/toasts";
 
 const RestAPI = findByProps("get", "post", "del", "patch");
 
@@ -28,23 +29,21 @@ export default {
                         }
                     });
                     
-                    logger.log("[SilentEdit] Successfully hijacked Edit and performed Silent Edit!");
+                    showToast("Silent Edit Success!");
                     return response; 
-                } catch (err) {
-                    logger.warn("[SilentEdit] Exploit failed, falling back to normal Edit: " + String(err));
-                    return orig(...args);
+                } catch (err: any) {
+                    const errorDetails = err?.body ? JSON.stringify(err.body) : String(err);
+                    showToast("Error: " + errorDetails);
+                    return { status: 400, body: err };
                 }
             }
 
             return orig(...args);
         });
-
-        logger.log("[SilentEdit] Loaded successfully.");
     },
 
     onUnload() {
         unpatchPatch?.();
         unpatchPatch = null;
-        logger.log("[SilentEdit] Unloaded.");
     },
 };
