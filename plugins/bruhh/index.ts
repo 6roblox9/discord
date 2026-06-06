@@ -13,41 +13,27 @@ export default {
             const [channelId, messageId, reqData] = args;
 
             try {
-                const origMsg = MessageStore?.getMessage(channelId, messageId);
-                let finalContent = reqData.content || "";
-
-                if (origMsg?.attachments && origMsg.attachments.length > 0) {
-                    const attachmentUrls = origMsg.attachments
-                        .map((a: any) => a.url)
-                        .filter(Boolean)
-                        .join("\n");
-                    
-                    if (attachmentUrls) {
-                        finalContent += "\n" + attachmentUrls;
-                    }
+                const rawMsg = MessageStore?.getMessage(channelId, messageId);
+                
+                if (!rawMsg) {
+                    return orig(...args);
                 }
 
-                const body: any = {
-                    content: finalContent,
-                    flags: 0,
-                    mobile_network_type: "unknown",
-                    nonce: messageId,
-                    tts: false,
-                };
+                const body: any = JSON.parse(JSON.stringify(rawMsg));
 
-                if (origMsg?.messageReference) {
-                    const ref = origMsg.messageReference;
-                    body.message_reference = {
-                        message_id: ref.message_id || ref.messageId,
-                        channel_id: ref.channel_id || ref.channelId,
-                        guild_id: ref.guild_id || ref.guildId,
-                    };
+                body.content = reqData.content;
+                body.nonce = messageId;
+                body.mobile_network_type = "unknown";
+
+                if (rawMsg.messageReference) {
+                    body.message_reference = rawMsg.messageReference;
                 }
 
                 const response = await RestAPI.post({
                     url: `/channels/${channelId}/messages`,
                     body: body
                 });
+                
                 return response;
             } catch (err: any) {
                 return orig(...args);
