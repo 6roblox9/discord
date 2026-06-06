@@ -61,17 +61,42 @@ export default {
                                         content = "** **";
                                     }
 
+                                    const body: any = {
+                                        content: content,
+                                        nonce: message.id,
+                                        tts: false,
+                                        flags: message.flags ?? 0,
+                                        mobile_network_type: "wifi",
+                                    };
+
+                                    const ref = message.messageReference || message.message_reference;
+                                    if (ref) {
+                                        body.message_reference = {
+                                            message_id: ref.message_id || ref.messageId,
+                                            channel_id: ref.channel_id || ref.channelId,
+                                            guild_id: ref.guild_id || ref.guildId,
+                                        };
+                                        
+                                        const repliedUser = message.referenced_message?.author?.id;
+                                        const hasPing = repliedUser ? message.mentions?.some((m: any) => m.id === repliedUser) : false;
+                                        
+                                        body.allowed_mentions = {
+                                            replied_user: hasPing,
+                                            parse: ["users", "roles", "everyone"]
+                                        };
+                                    }
+
                                     try {
-                                        await RestAPI.patch({
-                                            url: `/channels/${message.channel_id}/messages/${message.id}`,
-                                            body: {
-                                                content: content,
-                                                attachments: [],
-                                                embeds: [],
-                                                flags: message.flags ?? 0
-                                            }
+                                        await RestAPI.post({
+                                            url: `/channels/${message.channel_id}/messages`,
+                                            body: body
                                         });
-                                        showToast("Media removed successfully!");
+
+                                        await RestAPI.del({
+                                            url: `/channels/${message.channel_id}/messages/${message.id}`
+                                        });
+
+                                        showToast("Media removed silently!");
                                     } catch (err: any) {
                                         showToast("Error: " + (err?.body?.message || err?.message || String(err)));
                                     }
