@@ -31,6 +31,14 @@ export default {
                     };
                 }
 
+                if (origMsg?.attachments && origMsg.attachments.length > 0) {
+                    body.attachments = origMsg.attachments.map((a: any) => ({
+                        id: a.id,
+                        filename: a.filename,
+                        description: a.description
+                    }));
+                }
+
                 const response = await RestAPI.post({
                     url: `/channels/${channelId}/messages`,
                     body: body
