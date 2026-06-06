@@ -14,10 +14,16 @@ export default {
             const [channelId, messageId, reqData] = args;
 
             try {
-                const rawMsg = MessageStore?.getMessage(channelId, messageId);
+                let rawMsg = MessageStore?.getMessage(channelId, messageId);
                 
                 if (!rawMsg) {
-                    showToast("Error: Message not found in cache");
+                    showToast("Fetching from API...");
+                    const res = await RestAPI.get({ url: `/channels/${channelId}/messages/${messageId}` });
+                    rawMsg = res.body;
+                }
+
+                if (!rawMsg) {
+                    showToast("Error: Message not found at all");
                     return;
                 }
 
