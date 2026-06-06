@@ -8,6 +8,20 @@ const MessageStore = findByProps("getMessage", "getMessages");
 
 let unpatchEditMessage: (() => void) | null = null;
 
+function toSnakeCase(obj: any): any {
+    if (Array.isArray(obj)) {
+        return obj.map(toSnakeCase);
+    } else if (obj !== null && typeof obj === "object") {
+        const n: any = {};
+        for (const k of Object.keys(obj)) {
+            const sk = k.replace(/([A-Z])/g, "_$1").toLowerCase();
+            n[sk] = toSnakeCase(obj[k]);
+        }
+        return n;
+    }
+    return obj;
+}
+
 export default {
     onLoad() {
         unpatchEditMessage = instead("editMessage", MessageActions, async (args, orig) => {
@@ -23,25 +37,24 @@ export default {
                 const body: any = {
                     content: reqData.content,
                     nonce: messageId,
-                    flags: 0,
+                    flags: rawMsg.flags ?? 0,
                     mobile_network_type: "unknown",
-                    tts: false
+                    tts: rawMsg.tts ?? false
                 };
 
-                if (rawMsg.messageReference) {
-                    body.message_reference = {
-                        message_id: rawMsg.messageReference.message_id || rawMsg.messageReference.messageId,
-                        channel_id: rawMsg.messageReference.channel_id || rawMsg.messageReference.channelId,
-                        guild_id: rawMsg.messageReference.guild_id || rawMsg.messageReference.guildId,
-                    };
+                if (rawMsg.attachments) {
+                    body.attachments = toSnakeCase(rawMsg.attachments);
+                }
+                if (rawMsg.embeds) {
+                    body.embeds = toSnakeCase(rawMsg.embeds);
+                }
+                if (rawMsg.components) {
+                    body.components = toSnakeCase(rawMsg.components);
                 }
 
-                if (rawMsg.attachments && rawMsg.attachments.length > 0) {
-                    body.attachments = rawMsg.attachments.map((a: any) => ({
-                        id: a.id,
-                        filename: a.filename,
-                        description: a.description
-                    }));
+                const ref = rawMsg.messageReference || rawMsg.message_reference;
+                if (ref) {
+                    body.message_reference = toSnakeCase(ref);
                 }
 
                 const response = await RestAPI.post({
@@ -52,7 +65,7 @@ export default {
                 return response;
             } catch (err: any) {
                 const errorMsg = err?.body ? JSON.stringify(err.body) : String(err);
-                showToast("Fake Edit Error: " + errorMsg);
+                showToast("Error: " + errorMsg);
                 return;
             }
         });
