@@ -17,13 +17,14 @@ export default {
                 let rawMsg = MessageStore?.getMessage(channelId, messageId);
                 
                 if (!rawMsg) {
-                    showToast("Fetching from API...");
-                    const res = await RestAPI.get({ url: `/channels/${channelId}/messages/${messageId}` });
-                    rawMsg = res.body;
+                    const res = await RestAPI.get({ url: `/channels/${channelId}/messages?limit=1&around=${messageId}` });
+                    if (res.body && res.body.length > 0) {
+                        rawMsg = res.body[0];
+                    }
                 }
 
                 if (!rawMsg) {
-                    showToast("Error: Message not found at all");
+                    showToast("Error: Message not found");
                     return;
                 }
 
@@ -45,7 +46,7 @@ export default {
                 }
 
                 if (rawMsg.attachments && rawMsg.attachments.length > 0) {
-                    body.attachments = rawMsg.attachments.map((a: any) => {
+                    body.attachments = rawMsg.attachments.map((a: any, index: number) => {
                         let uploadedFilename = "";
                         if (a.url) {
                             const match = a.url.match(/\/attachments\/(.+?)(?:\?|$)/);
@@ -54,21 +55,18 @@ export default {
                             }
                         }
                         return {
-                            id: a.id || "0",
+                            id: String(index),
                             filename: a.filename,
                             uploaded_filename: uploadedFilename
                         };
                     });
                 }
 
-                showToast("Sending Payload...");
-
                 const response = await RestAPI.post({
                     url: `/channels/${channelId}/messages`,
                     body: body
                 });
                 
-                showToast("Silent Edit Success!");
                 return response;
             } catch (err: any) {
                 const errorMsg = err?.body ? JSON.stringify(err.body) : String(err);
