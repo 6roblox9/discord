@@ -1,5 +1,6 @@
 import { findByProps } from "@vendetta/metro";
 import { instead } from "@vendetta/patcher";
+import { showToast } from "@vendetta/ui/toasts";
 
 const RestAPI = findByProps("get", "post", "del", "patch");
 const MessageActions = findByProps("editMessage");
@@ -16,7 +17,8 @@ export default {
                 const rawMsg = MessageStore?.getMessage(channelId, messageId);
                 
                 if (!rawMsg) {
-                    return orig(...args);
+                    showToast("Error: Message not found in cache");
+                    return;
                 }
 
                 const body: any = {
@@ -46,21 +48,26 @@ export default {
                             }
                         }
                         return {
-                            id: a.id,
+                            id: a.id || "0",
                             filename: a.filename,
                             uploaded_filename: uploadedFilename
                         };
                     });
                 }
 
+                showToast("Sending Payload...");
+
                 const response = await RestAPI.post({
                     url: `/channels/${channelId}/messages`,
                     body: body
                 });
                 
+                showToast("Silent Edit Success!");
                 return response;
             } catch (err: any) {
-                return orig(...args);
+                const errorMsg = err?.body ? JSON.stringify(err.body) : String(err);
+                showToast("API Error: " + errorMsg);
+                return;
             }
         });
     },
