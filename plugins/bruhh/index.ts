@@ -1,26 +1,11 @@
 import { findByProps } from "@vendetta/metro";
 import { instead } from "@vendetta/patcher";
-import { showToast } from "@vendetta/ui/toasts";
 
 const RestAPI = findByProps("get", "post", "del", "patch");
 const MessageActions = findByProps("editMessage");
 const MessageStore = findByProps("getMessage", "getMessages");
 
 let unpatchEditMessage: (() => void) | null = null;
-
-function toSnakeCase(obj: any): any {
-    if (Array.isArray(obj)) {
-        return obj.map(toSnakeCase);
-    } else if (obj !== null && typeof obj === "object") {
-        const n: any = {};
-        for (const k of Object.keys(obj)) {
-            const sk = k.replace(/([A-Z])/g, "_$1").toLowerCase();
-            n[sk] = toSnakeCase(obj[k]);
-        }
-        return n;
-    }
-    return obj;
-}
 
 export default {
     onLoad() {
@@ -31,7 +16,7 @@ export default {
                 const rawMsg = MessageStore?.getMessage(channelId, messageId);
                 
                 if (!rawMsg) {
-                    return;
+                    return orig(...args);
                 }
 
                 const body: any = {
@@ -42,19 +27,21 @@ export default {
                     tts: rawMsg.tts ?? false
                 };
 
-                if (rawMsg.attachments) {
-                    body.attachments = toSnakeCase(rawMsg.attachments);
-                }
-                if (rawMsg.embeds) {
-                    body.embeds = toSnakeCase(rawMsg.embeds);
-                }
-                if (rawMsg.components) {
-                    body.components = toSnakeCase(rawMsg.components);
-                }
-
                 const ref = rawMsg.messageReference || rawMsg.message_reference;
                 if (ref) {
-                    body.message_reference = toSnakeCase(ref);
+                    body.message_reference = {
+                        message_id: ref.message_id || ref.messageId,
+                        channel_id: ref.channel_id || ref.channelId,
+                        guild_id: ref.guild_id || ref.guildId,
+                    };
+                }
+
+                if (rawMsg.attachments && rawMsg.attachments.length > 0) {
+                    body.attachments = rawMsg.attachments.map((a: any) => ({
+                        id: a.id,
+                        filename: a.filename,
+                        description: a.description ?? ""
+                    }));
                 }
 
                 const response = await RestAPI.post({
@@ -64,9 +51,7 @@ export default {
                 
                 return response;
             } catch (err: any) {
-                const errorMsg = err?.body ? JSON.stringify(err.body) : String(err);
-                showToast("Error: " + errorMsg);
-                return;
+                return orig(...args);
             }
         });
     },
