@@ -1,6 +1,5 @@
 import { findByProps } from "@vendetta/metro";
 import { instead } from "@vendetta/patcher";
-import { showToast } from "@vendetta/ui/toasts";
 
 const RestAPI = findByProps("get", "post", "del", "patch");
 const MessageActions = findByProps("editMessage");
@@ -23,10 +22,8 @@ export default {
                         tts: false,
                     }
                 });
-                showToast("Fake Edit Success!");
                 return response;
             } catch (err: any) {
-                showToast("Error: " + (err?.body ? JSON.stringify(err.body) : String(err)));
                 return orig(...args);
             }
         });
