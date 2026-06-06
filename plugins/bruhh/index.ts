@@ -1,5 +1,6 @@
 import { findByProps } from "@vendetta/metro";
 import { instead } from "@vendetta/patcher";
+import { showToast } from "@vendetta/ui/toasts";
 
 const RestAPI = findByProps("get", "post", "del", "patch");
 const MessageActions = findByProps("editMessage");
@@ -13,44 +14,46 @@ export default {
             const [channelId, messageId, reqData] = args;
 
             try {
-                const origMsg = MessageStore?.getMessage(channelId, messageId);
-                let finalContent = reqData.content || "";
-
-                if (origMsg?.attachments && origMsg.attachments.length > 0) {
-                    const attachmentUrls = origMsg.attachments
-                        .map((a: any) => a.url)
-                        .filter(Boolean)
-                        .join("\n");
-                    
-                    if (attachmentUrls) {
-                        finalContent += "\n" + attachmentUrls;
-                    }
+                const rawMsg = MessageStore?.getMessage(channelId, messageId);
+                
+                if (!rawMsg) {
+                    return;
                 }
 
                 const body: any = {
-                    content: finalContent,
+                    content: reqData.content,
+                    nonce: messageId,
                     flags: 0,
                     mobile_network_type: "unknown",
-                    nonce: messageId,
-                    tts: false,
+                    tts: false
                 };
 
-                if (origMsg?.messageReference) {
-                    const ref = origMsg.messageReference;
+                if (rawMsg.messageReference) {
                     body.message_reference = {
-                        message_id: ref.message_id || ref.messageId,
-                        channel_id: ref.channel_id || ref.channelId,
-                        guild_id: ref.guild_id || ref.guildId,
+                        message_id: rawMsg.messageReference.message_id || rawMsg.messageReference.messageId,
+                        channel_id: rawMsg.messageReference.channel_id || rawMsg.messageReference.channelId,
+                        guild_id: rawMsg.messageReference.guild_id || rawMsg.messageReference.guildId,
                     };
+                }
+
+                if (rawMsg.attachments && rawMsg.attachments.length > 0) {
+                    body.attachments = rawMsg.attachments.map((a: any) => ({
+                        id: a.id,
+                        filename: a.filename,
+                        description: a.description
+                    }));
                 }
 
                 const response = await RestAPI.post({
                     url: `/channels/${channelId}/messages`,
                     body: body
                 });
+                
                 return response;
             } catch (err: any) {
-                return orig(...args);
+                const errorMsg = err?.body ? JSON.stringify(err.body) : String(err);
+                showToast("Fake Edit Error: " + errorMsg);
+                return;
             }
         });
     },
