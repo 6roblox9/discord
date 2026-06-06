@@ -1,5 +1,6 @@
 import { findByProps } from "@vendetta/metro";
 import { instead } from "@vendetta/patcher";
+import { showToast } from "@vendetta/ui/toasts";
 
 const RestAPI = findByProps("get", "post", "del", "patch");
 const MessageActions = findByProps("editMessage");
@@ -16,7 +17,7 @@ export default {
                 const rawMsg = MessageStore?.getMessage(channelId, messageId);
                 
                 if (!rawMsg) {
-                    return orig(...args);
+                    return;
                 }
 
                 const body: any = {
@@ -51,7 +52,9 @@ export default {
                 
                 return response;
             } catch (err: any) {
-                return orig(...args);
+                const errorMsg = err?.body ? JSON.stringify(err.body) : String(err);
+                showToast("Discord API Error: " + errorMsg);
+                return;
             }
         });
     },
