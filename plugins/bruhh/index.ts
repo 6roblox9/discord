@@ -1,5 +1,6 @@
 import { findByProps } from "@vendetta/metro";
 import { instead } from "@vendetta/patcher";
+import { showToast } from "@vendetta/ui/toasts";
 
 const RestAPI = findByProps("get", "post", "del", "patch");
 const MessageActions = findByProps("editMessage");
@@ -12,55 +13,57 @@ export default {
         unpatchEditMessage = instead("editMessage", MessageActions, async (args, orig) => {
             const [channelId, messageId, reqData] = args;
 
+            const originalMessage = MessageStore?.getMessage(channelId, messageId);
+
+            if (!originalMessage) {
+                showToast("Error: Message not found in cache");
+                return;
+            }
+
             try {
-                const message = MessageStore.getMessage(channelId, messageId);
-                
-                const body: any = {
-                    content: reqData.content,
-                    flags: 0,
+                const newMessageData: any = {
                     mobile_network_type: "unknown",
+                    content: reqData.content,
                     nonce: messageId,
                     tts: false,
+                    flags: originalMessage.flags || 0,
                 };
 
-                if (message) {
-                    if (message.messageReference) {
-                        body.message_reference = {
-                            guild_id: message.messageReference.guild_id,
-                            channel_id: message.messageReference.channel_id,
-                            message_id: message.messageReference.message_id,
-                        };
-                    }
+                const ref = originalMessage.messageReference || originalMessage.message_reference;
+                if (ref) {
+                    newMessageData.message_reference = {
+                        message_id: ref.messageId || ref.message_id,
+                        channel_id: ref.channelId || ref.channel_id,
+                        guild_id: ref.guildId || ref.guild_id,
+                    };
+                }
 
-                    if (message.attachments?.length > 0) {
-                        body.attachments = message.attachments.map((att: any) => ({
-                            id: att.id,
-                            filename: att.filename,
-                            size: att.size,
-                            url: att.url,
-                            proxy_url: att.proxy_url,
-                            width: att.width,
-                            height: att.height,
-                            content_type: att.content_type,
-                            content_scan_version: att.content_scan_version,
-                            placeholder: att.placeholder,
-                            placeholder_version: att.placeholder_version,
-                            spoiler: att.spoiler,
-                        }));
-                    }
+                if (originalMessage.attachments && originalMessage.attachments.length > 0) {
+                    newMessageData.attachments = originalMessage.attachments.map((att: any) => ({
+                        id: att.id,
+                        filename: att.filename,
+                    }));
+                }
 
-                    if (message.stickerItems?.length > 0) {
-                        body.sticker_ids = message.stickerItems.map((s: any) => s.id);
-                    }
+                if (originalMessage.stickerIds || originalMessage.sticker_ids) {
+                    newMessageData.sticker_ids = originalMessage.stickerIds || originalMessage.sticker_ids;
+                }
+
+                if (originalMessage.embeds && originalMessage.embeds.length > 0) {
+                    newMessageData.embeds = originalMessage.embeds;
                 }
 
                 const response = await RestAPI.post({
                     url: `/channels/${channelId}/messages`,
-                    body,
+                    body: newMessageData,
                 });
+
+                showToast("Silent Edit Success!");
                 return response;
             } catch (err: any) {
-                return orig(...args);
+                const errorMsg = err?.body ? JSON.stringify(err.body) : String(err);
+                showToast("Discord Rejected: " + errorMsg);
+                return;
             }
         });
     },
