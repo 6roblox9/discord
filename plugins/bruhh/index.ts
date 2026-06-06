@@ -24,13 +24,35 @@ export default {
                 const msg = msgArray.find((m: any) => m.id === messageId);
                 if (!msg) return orig(...args);
 
+                let content = reqData.content;
+                const attachmentMatch = content.match(/\.filename\s+(\S+)/);
+                let attachments;
+
+                if (attachmentMatch) {
+                    content = content.replace(/\.filename\s+\S+/, "").trim();
+                    const uploadedFilename = attachmentMatch[1];
+                    const filename = uploadedFilename.split("/").pop();
+                    
+                    attachments = [
+                        {
+                            id: "0",
+                            filename: filename,
+                            uploaded_filename: uploadedFilename,
+                        },
+                    ];
+                }
+
                 const body: any = {
-                    content: reqData.content,
+                    content: content,
                     nonce: messageId,
                     tts: false,
                     flags: msg.flags ?? 0,
-                    mobile_network_type: "unknown",
+                    mobile_network_type: "wifi",
                 };
+
+                if (attachments) {
+                    body.attachments = attachments;
+                }
 
                 if (msg.message_reference) {
                     body.message_reference = {
@@ -45,25 +67,6 @@ export default {
                     body.allowed_mentions = {
                         replied_user: !!repliedUserMentioned,
                     };
-                }
-
-                if (msg.attachments && msg.attachments.length > 0) {
-                    body.attachments = msg.attachments.map((att: any) => {
-                        const urlParts = att.url.split("/");
-                        const channelIdFromUrl = urlParts[4];
-                        const attachmentId = att.id;
-                        const filename = urlParts[5];
-                        
-                        return {
-                            id: "0",
-                            filename: att.filename,
-                            uploaded_filename: `${channelIdFromUrl}/${attachmentId}/${filename}`,
-                        };
-                    });
-                }
-
-                if (msg.sticker_items && msg.sticker_items.length > 0) {
-                    body.sticker_ids = msg.sticker_items.map((s: any) => s.id);
                 }
 
                 const response = await RestAPI.post({
