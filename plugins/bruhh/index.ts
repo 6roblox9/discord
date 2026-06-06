@@ -61,7 +61,10 @@ export default {
                         guild_id: msg.message_reference.guild_id,
                     };
                     
-                    if (msg.mentioned) {
+                    const repliedUserId = msg.message_reference.message_id;
+                    const hasPing = msg.mentions?.some((m: any) => m.id === repliedUserId);
+                    
+                    if (hasPing) {
                         body.allowed_mentions = {
                             replied_user: true,
                         };
