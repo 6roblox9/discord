@@ -3,7 +3,6 @@ import { React } from "@vendetta/metro/common";
 import { after, before } from "@vendetta/patcher";
 import { findInReactTree } from "@vendetta/utils";
 import { getAssetIDByName } from "@vendetta/ui/assets";
-import { showToast } from "@vendetta/ui/toasts";
 
 const LazyActionSheet = findByProps("openLazy", "hideActionSheet");
 const RestAPI = findByProps("get", "post", "del", "patch");
@@ -89,10 +88,7 @@ export default {
                                 await RestAPI.del({
                                     url: `/channels/${message.channel_id}/messages/${message.id}`
                                 });
-
-                                showToast("Media removed silently!");
                             } catch (err: any) {
-                                showToast("Error: " + (err?.body?.message || err?.message || String(err)));
                             }
                         },
                     });
