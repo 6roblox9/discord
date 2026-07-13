@@ -4,26 +4,19 @@ import { findByProps } from "@vendetta/metro";
 import { useProxy } from "@vendetta/storage";
 
 const { ScrollView } = findByProps("ScrollView");
-const { TableRowGroup, TableSwitchRow } = findByProps(
-    "TableSwitchRow",
-    "TableCheckboxRow",
-    "TableRowGroup"
-);
-
-if (storage.injectOriginalEdit === undefined) storage.injectOriginalEdit = true;
+const { TableRowGroup, TableSwitchRow } = findByProps("TableSwitchRow", "TableRowGroup");
 
 export default function Settings() {
     useProxy(storage);
 
     return (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 10 }}>
-            <TableRowGroup title="Edit Behavior">
+            <TableRowGroup>
                 <TableSwitchRow
-                    label="Inject Original Edit"
-                    subLabel="Replace original edit with silent edit. Disable for separate button."
-                    value={storage.injectOriginalEdit}
-                    onValueChange={(value: boolean) => {
-                        storage.injectOriginalEdit = value;
+                    label="Override Native Edit Button"
+                    value={storage.overrideNative ?? true}
+                    onValueChange={(val: boolean) => {
+                        storage.overrideNative = val;
                     }}
                 />
             </TableRowGroup>
