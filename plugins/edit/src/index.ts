@@ -150,14 +150,8 @@ export default {
                         if (!groupChildren) continue;
 
                         const editRowIndex = groupChildren.findIndex((c: any) => {
-                            const nodeKey = String(c?.key || "").toLowerCase();
-                            const iconSource = c?.props?.icon?.props?.source;
-                            
-                            return (
-                                nodeKey === "edit" || 
-                                nodeKey === ".$edit" || 
-                                (iconSource && iconSource === EditIcon)
-                            );
+                            const labelStr = (c?.props?.label || c?.props?.message || "").toLowerCase();
+                            return labelStr.includes("edit");
                         });
 
                         if (editRowIndex >= 0) {
