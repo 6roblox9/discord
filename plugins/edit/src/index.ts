@@ -13,12 +13,7 @@ const MessageActions = findByProps("editMessage");
 const UserStore = findByProps("getCurrentUser");
 const { ActionSheetRow } = findByProps("ActionSheetRow");
 
-const EditIcon = 
-    getAssetIDByName("PencilIcon") ?? 
-    getAssetIDByName("ic_message_edit") ?? 
-    getAssetIDByName("ic_edit_24px") ?? 
-    getAssetIDByName("pencil") ?? 
-    getAssetIDByName("edit");
+const EditIcon = getAssetIDByName("PencilIcon");
 
 let unpatchActionSheet: (() => void) | null = null;
 let unpatchEditMessage: (() => void) | null = null;
