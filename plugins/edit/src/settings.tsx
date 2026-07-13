@@ -13,7 +13,8 @@ export default function Settings() {
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 10 }}>
             <TableRowGroup>
                 <TableSwitchRow
-                    label="Override Native Edit Button"
+                    label="Inject Original Edit"
+                    subLabel="Replace original edit with silent edit."
                     value={storage.overrideNative ?? true}
                     onValueChange={(val: boolean) => {
                         storage.overrideNative = val;
