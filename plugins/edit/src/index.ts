@@ -14,6 +14,7 @@ const UserStore = findByProps("getCurrentUser");
 const { ActionSheetRow } = findByProps("ActionSheetRow");
 
 const EditIcon = 
+    getAssetIDByName("ic_message_edit") ?? 
     getAssetIDByName("ic_edit_24px") ?? 
     getAssetIDByName("pencil") ?? 
     getAssetIDByName("edit");
