@@ -2,17 +2,19 @@ import { after } from "@vendetta/patcher";
 import { findByProps } from "@vendetta/metro";
 import { findInReactTree } from "@vendetta/utils";
 import { showToast } from "@vendetta/ui/toasts";
+import { showConfirmationAlert } from "@vendetta/ui/alerts";
+import { React } from "@vendetta/metro/common";
 
-const APIUtils = findByProps("getAPIBaseURL", "del");
-const ActionSheet = findByProps("ActionSheet");
-const ActionSheetRow = findByProps("ActionSheetRow");
-const { showConfirmationAlert } = findByProps("showConfirmationAlert");
-const React = findByProps("createElement");
+const APIUtils = findByProps("getAPIBaseURL") || findByProps("get", "post", "put", "del");
+const ActionSheetComponents = findByProps("ActionSheetRow") || findByProps("ActionSheet", "ActionSheetRow") || {};
+const { ActionSheet, ActionSheetRow } = ActionSheetComponents;
 
 let patches = [];
 
 export default {
   onLoad() {
+    if (!ActionSheet || !ActionSheetRow) return;
+
     patches.push(
       after("render", ActionSheet, (args, res) => {
         const dangerGroup = findInReactTree(res, (x) => x?.key === "gdm-destructive");
