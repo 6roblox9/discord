@@ -21,6 +21,7 @@ if (storage.keywords === undefined) storage.keywords = [];
 if (storage.targetChannelId === undefined) storage.targetChannelId = "";
 if (storage.trackMode === undefined) storage.trackMode = "everyone";
 if (storage.customIds === undefined) storage.customIds = "";
+if (storage.ignoreBots === undefined) storage.ignoreBots = true;
 
 let unsubMessage: (() => void) | null = null;
 
@@ -32,6 +33,8 @@ export default {
 
       const currentUser = UserStore.getCurrentUser();
       if (m.author?.id === currentUser?.id) return;
+
+      if (storage.ignoreBots && m.author?.bot) return;
 
       const authorId = m.author?.id;
       
@@ -81,38 +84,49 @@ export default {
 
       const author = m.author;
       const authorName = author.username;
-      let locationStr = "";
-      let messageLink = "";
-      let extraInfo = "";
-      let locationType = "";
-
-      if (c.guild_id) {
-        const g = GuildStore.getGuild(c.guild_id);
-        locationType = "Server";
-        locationStr = `Server: ${g?.name} #${c.name}`;
-        messageLink = `https://discord.com/channels/${c.guild_id}/${c.id}/${m.id}`;
-        extraInfo = `\n**Server:** ${g?.name} (ID: ${c.guild_id})\n**Channel:** <#${c.id}> ${c.name} (ID: ${c.id})`;
-      } else if (c.type === 3) {
-        locationType = "Group";
-        locationStr = `Group: ${c.name || 'Unnamed'}`;
-        messageLink = `https://discord.com/channels/@me/${c.id}/${m.id}`;
-        extraInfo = `\n**Group:** <#${c.id}> ${c.name || 'Unnamed Group'} (ID: ${c.id})`;
-      } else {
-        locationType = "DM";
-        locationStr = "DM";
-        messageLink = `https://discord.com/channels/@me/${c.id}/${m.id}`;
-      }
-
+      
       if (storage.sendNotificationToChannel && storage.targetChannelId) {
-        showToast(`${authorName} sent a tracked message`);
-        
-        const messageContent = `**Keyword Detected!**\n\n**User:** <@${author.id}> (Username: ${authorName}, ID: ${author.id})\n**Keyword:** ${matchedKeyword}\n**Message:** ${m.content}\n**Location:** ${locationType}${extraInfo}\n**Message Link:** ${messageLink}`;
-        
+        let messageContent = `# **Keyword Detected!**\n\n`;
+        messageContent += `**User:** <@${author.id}>\n`;
+        messageContent += `    Username: \`@${authorName}\`\n`;
+        messageContent += `    ID: \`${author.id}\`\n`;
+        messageContent += `**Keyword:** \`${matchedKeyword}\`\n`;
+        messageContent += `**Message:**\n${m.content}\n`;
+
+        if (c.guild_id) {
+          const g = GuildStore.getGuild(c.guild_id);
+          messageContent += `**Location:** Server\n`;
+          messageContent += `**Server:**\n`;
+          messageContent += `    Name: \`${g?.name}\`\n`;
+          messageContent += `    ID: \`${c.guild_id}\`\n`;
+          messageContent += `**Channel:** <#${c.id}>\n`;
+          messageContent += `    Name: \`${c.name}\`\n`;
+          messageContent += `    ID: \`${c.id}\`\n`;
+          messageContent += `**Message Link:** https://discord.com/channels/${c.guild_id}/${c.id}/${m.id}`;
+        } else if (c.type === 3) {
+          messageContent += `**Location:** Group\n`;
+          messageContent += `**Group:** <#${c.id}>\n`;
+          messageContent += `    Name: \`${c.name || 'Unnamed Group'}\`\n`;
+          messageContent += `    ID: \`${c.id}\`\n`;
+          messageContent += `**Message Link:** https://discord.com/channels/@me/${c.id}/${m.id}`;
+        } else {
+          messageContent += `**Location:** DM\n`;
+          messageContent += `**Message Link:** https://discord.com/channels/@me/${c.id}/${m.id}`;
+        }
+
         HTTP.post({
           url: `/channels/${storage.targetChannelId.trim()}/messages`,
           body: { content: messageContent }
         });
+        showToast(`${authorName} sent a tracked message`);
       } else {
+        let locationStr = "DM";
+        if (c.guild_id) {
+          const g = GuildStore.getGuild(c.guild_id);
+          locationStr = `Server: ${g?.name} #${c.name}`;
+        } else if (c.type === 3) {
+          locationStr = `Group: ${c.name || 'Unnamed'}`;
+        }
         showToast(`${authorName} said "${matchedKeyword}" in ${locationStr}`);
       }
     };
