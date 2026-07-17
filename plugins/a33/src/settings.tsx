@@ -18,6 +18,34 @@ export default function Settings() {
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 10 }}>
       <Stack spacing={8}>
+
+        <TableRowGroup title="Tracking Target">
+          <TableSwitchRow
+            label="Track Everyone"
+            value={storage.trackMode === "everyone"}
+            onValueChange={() => (storage.trackMode = "everyone")}
+          />
+          <TableSwitchRow
+            label="Track Friends Only"
+            value={storage.trackMode === "friends"}
+            onValueChange={() => (storage.trackMode = "friends")}
+          />
+          <TableSwitchRow
+            label="Track Custom Users"
+            value={storage.trackMode === "custom"}
+            onValueChange={() => (storage.trackMode = "custom")}
+          />
+          {storage.trackMode === "custom" && (
+            <Stack spacing={4} style={{ padding: 10 }}>
+              <TextInput
+                placeholder="123456789, 987654321"
+                value={storage.customIds}
+                onChange={(v: string) => (storage.customIds = v)}
+              />
+            </Stack>
+          )}
+        </TableRowGroup>
+
         <TableRowGroup title="Keyword Setup">
           <Stack spacing={4} style={{ padding: 10 }}>
             <TextInput
@@ -49,19 +77,16 @@ export default function Settings() {
         <TableRowGroup title="Matching Rules">
           <TableSwitchRow
             label="Exact Match"
-            subLabel="Message must be exactly the keyword"
             value={storage.exactMatch}
             onValueChange={(v: boolean) => (storage.exactMatch = v)}
           />
           <TableSwitchRow
             label="Case Sensitive"
-            subLabel="Match exact uppercase and lowercase letters"
             value={storage.caseSensitive}
             onValueChange={(v: boolean) => (storage.caseSensitive = v)}
           />
           <TableSwitchRow
             label="Match in a Sentence"
-            subLabel="Keyword can be part of a larger sentence"
             value={storage.inSentence}
             onValueChange={(v: boolean) => (storage.inSentence = v)}
           />
@@ -70,23 +95,23 @@ export default function Settings() {
         <TableRowGroup title="Advanced Notifications">
           <TableSwitchRow
             label="Send Notifications to Channel"
-            subLabel="Forward detected messages to a specific channel"
             value={storage.sendNotificationToChannel}
             onValueChange={(v: boolean) => (storage.sendNotificationToChannel = v)}
           />
           {storage.sendNotificationToChannel && (
             <Stack spacing={4} style={{ padding: 10 }}>
-              <Text style={{ color: "#f23f42", fontSize: 12, marginBottom: 4, fontWeight: "bold" }}>
-                WARNING: You must own the target channel to maintain privacy and prevent spamming others.
-              </Text>
               <TextInput
                 placeholder="Enter Target Channel ID..."
                 value={storage.targetChannelId}
                 onChange={(v: string) => (storage.targetChannelId = v)}
               />
+              <Text style={{ color: "#f23f42", fontSize: 12, marginTop: 4, fontWeight: "bold" }}>
+                WARNING: You must own the target channel to maintain privacy and prevent spamming others.
+              </Text>
             </Stack>
           )}
         </TableRowGroup>
+
       </Stack>
     </ScrollView>
   );
