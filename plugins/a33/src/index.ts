@@ -7,7 +7,8 @@ const FluxDispatcher = findByProps("dispatch", "subscribe");
 const ChannelStore = findByProps("getChannel");
 const GuildStore = findByProps("getGuild");
 const UserStore = findByProps("getUser", "getCurrentUser");
-const MessageActions = findByProps("sendMessage");
+const RelationshipStore = findByProps("getFriendIDs");
+const MessageActions = findByProps("sendMessage", "editMessage");
 
 if (storage.trackServers === undefined) storage.trackServers = true;
 if (storage.trackGroups === undefined) storage.trackGroups = true;
@@ -18,6 +19,8 @@ if (storage.inSentence === undefined) storage.inSentence = true;
 if (storage.sendNotificationToChannel === undefined) storage.sendNotificationToChannel = false;
 if (storage.keyword === undefined) storage.keyword = "";
 if (storage.targetChannelId === undefined) storage.targetChannelId = "";
+if (storage.trackMode === undefined) storage.trackMode = "everyone";
+if (storage.customIds === undefined) storage.customIds = "";
 
 let unsubMessage: (() => void) | null = null;
 
@@ -29,6 +32,16 @@ export default {
 
       const currentUser = UserStore.getCurrentUser();
       if (m.author?.id === currentUser?.id) return;
+
+      const authorId = m.author?.id;
+      
+      if (storage.trackMode === "friends") {
+        const friends = RelationshipStore.getFriendIDs();
+        if (!friends.includes(authorId)) return;
+      } else if (storage.trackMode === "custom") {
+        const customList = storage.customIds.split(",").map((id: string) => id.trim());
+        if (!customList.includes(authorId)) return;
+      }
 
       const c = ChannelStore.getChannel(m.channel_id);
       if (!c) return;
@@ -86,7 +99,7 @@ export default {
         
         const messageContent = `**Keyword Detected!**\n\n**User:** <@${author.id}> (Username: ${authorName}, ID: ${author.id})\n**Message:** ${m.content}\n**Location:** ${locationType}${extraInfo}\n**Message Link:** ${messageLink}`;
         
-        MessageActions.sendMessage(storage.targetChannelId, { content: messageContent });
+        MessageActions.sendMessage(storage.targetChannelId.trim(), { content: messageContent, validNonShortcutEmojis: [] });
       } else {
         showToast(`${authorName} said "${storage.keyword}" in ${locationStr}`);
       }
