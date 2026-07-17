@@ -85,7 +85,7 @@ export default function Settings() {
         <TableRowGroup>
           <TableRow
             label="Add Keyword"
-            subLabel="Add this word or phrase to your tracking list"
+            subLabel="Add the typed word or phrase to your tracking list"
             trailing={<TableRow.Arrow />}
             onPress={addKeyword}
           />
@@ -124,13 +124,13 @@ export default function Settings() {
         <TableRowGroup title="Data Management">
           <TableRow
             label="Export JSON"
-            subLabel="Copy your keywords list to clipboard"
+            subLabel="Copy your keywords list to the clipboard for backup"
             trailing={<TableRow.Arrow />}
             onPress={exportKeywords}
           />
           <TableRow
             label="Import JSON"
-            subLabel="Load keywords list from clipboard"
+            subLabel="Load a keywords list from your clipboard"
             trailing={<TableRow.Arrow />}
             onPress={importKeywords}
           />
@@ -139,21 +139,25 @@ export default function Settings() {
         <TableRowGroup title="Tracking Target">
           <TableSwitchRow
             label="Track Everyone"
+            subLabel="Listen to messages from all users across Discord"
             value={storage.trackMode === "everyone"}
             onValueChange={() => { storage.trackMode = "everyone"; forceUpdate(); }}
           />
           <TableSwitchRow
             label="Track Friends Only"
+            subLabel="Only listen to messages sent by your added friends"
             value={storage.trackMode === "friends"}
             onValueChange={() => { storage.trackMode = "friends"; forceUpdate(); }}
           />
           <TableSwitchRow
             label="Track Custom Users"
+            subLabel="Only listen to messages from specific user IDs"
             value={storage.trackMode === "custom"}
             onValueChange={() => { storage.trackMode = "custom"; forceUpdate(); }}
           />
           <TableSwitchRow
             label="Ignore Bots"
+            subLabel="Do not track messages sent by Discord bot accounts"
             value={storage.ignoreBots}
             onValueChange={(v: boolean) => { storage.ignoreBots = v; forceUpdate(); }}
           />
@@ -171,16 +175,19 @@ export default function Settings() {
         <TableRowGroup title="Tracking Locations">
           <TableSwitchRow
             label="Track Servers"
+            subLabel="Monitor messages sent in public or private servers"
             value={storage.trackServers}
             onValueChange={(v: boolean) => { storage.trackServers = v; forceUpdate(); }}
           />
           <TableSwitchRow
             label="Track Group DMs"
+            subLabel="Monitor messages sent in group chats"
             value={storage.trackGroups}
             onValueChange={(v: boolean) => { storage.trackGroups = v; forceUpdate(); }}
           />
           <TableSwitchRow
             label="Track DMs"
+            subLabel="Monitor messages sent in direct messages"
             value={storage.trackDMs}
             onValueChange={(v: boolean) => { storage.trackDMs = v; forceUpdate(); }}
           />
@@ -189,16 +196,19 @@ export default function Settings() {
         <TableRowGroup title="Matching Rules">
           <TableSwitchRow
             label="Exact Match"
+            subLabel="The message content must be exactly the keyword with no other words"
             value={storage.exactMatch}
             onValueChange={(v: boolean) => { storage.exactMatch = v; forceUpdate(); }}
           />
           <TableSwitchRow
             label="Case Sensitive"
+            subLabel="Match the exact uppercase and lowercase letters of the keyword"
             value={storage.caseSensitive}
             onValueChange={(v: boolean) => { storage.caseSensitive = v; forceUpdate(); }}
           />
           <TableSwitchRow
             label="Match in a Sentence"
+            subLabel="The keyword can be detected even if it is part of a longer sentence"
             value={storage.inSentence}
             onValueChange={(v: boolean) => { storage.inSentence = v; forceUpdate(); }}
           />
@@ -207,6 +217,7 @@ export default function Settings() {
         <TableRowGroup title="Advanced Notifications">
           <TableSwitchRow
             label="Send Notifications to Channel"
+            subLabel="Forward detected messages silently to a specific channel you own"
             value={storage.sendNotificationToChannel}
             onValueChange={(v: boolean) => { storage.sendNotificationToChannel = v; forceUpdate(); }}
           />
