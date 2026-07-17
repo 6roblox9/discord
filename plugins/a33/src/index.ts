@@ -8,7 +8,7 @@ const ChannelStore = findByProps("getChannel");
 const GuildStore = findByProps("getGuild");
 const UserStore = findByProps("getUser", "getCurrentUser");
 const RelationshipStore = findByProps("getFriendIDs");
-const MessageActions = findByProps("sendMessage", "editMessage");
+const HTTP = findByProps("get", "post", "put", "patch");
 
 if (storage.trackServers === undefined) storage.trackServers = true;
 if (storage.trackGroups === undefined) storage.trackGroups = true;
@@ -17,7 +17,7 @@ if (storage.exactMatch === undefined) storage.exactMatch = false;
 if (storage.caseSensitive === undefined) storage.caseSensitive = false;
 if (storage.inSentence === undefined) storage.inSentence = true;
 if (storage.sendNotificationToChannel === undefined) storage.sendNotificationToChannel = false;
-if (storage.keyword === undefined) storage.keyword = "";
+if (storage.keywords === undefined) storage.keywords = [];
 if (storage.targetChannelId === undefined) storage.targetChannelId = "";
 if (storage.trackMode === undefined) storage.trackMode = "everyone";
 if (storage.customIds === undefined) storage.customIds = "";
@@ -28,7 +28,7 @@ export default {
   onLoad() {
     const onMessage = (p: any) => {
       const m = p?.message;
-      if (!m || !m.content || !storage.keyword) return;
+      if (!m || !m.content || !storage.keywords || storage.keywords.length === 0) return;
 
       const currentUser = UserStore.getCurrentUser();
       if (m.author?.id === currentUser?.id) return;
@@ -50,25 +50,34 @@ export default {
       if (c.type === 3 && !storage.trackGroups) return;
       if ((c.type === 1 || (c.type === 0 && !c.guild_id)) && !storage.trackDMs) return;
 
-      let content = m.content;
-      let kw = storage.keyword;
+      let matchedKeyword = "";
 
-      if (!storage.caseSensitive) {
-        content = content.toLowerCase();
-        kw = kw.toLowerCase();
+      for (let kw of storage.keywords) {
+        let content = m.content;
+        let testKw = kw;
+
+        if (!storage.caseSensitive) {
+          content = content.toLowerCase();
+          testKw = testKw.toLowerCase();
+        }
+
+        let isMatch = false;
+        if (storage.exactMatch) {
+          isMatch = content === testKw;
+        } else if (storage.inSentence) {
+          isMatch = content.includes(testKw);
+        } else {
+          const regex = new RegExp(`\\b${testKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, storage.caseSensitive ? '' : 'i');
+          isMatch = regex.test(m.content);
+        }
+
+        if (isMatch) {
+          matchedKeyword = kw;
+          break;
+        }
       }
 
-      let isMatch = false;
-      if (storage.exactMatch) {
-        isMatch = content === kw;
-      } else if (storage.inSentence) {
-        isMatch = content.includes(kw);
-      } else {
-        const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, storage.caseSensitive ? '' : 'i');
-        isMatch = regex.test(m.content);
-      }
-
-      if (!isMatch) return;
+      if (!matchedKeyword) return;
 
       const author = m.author;
       const authorName = author.username;
@@ -97,11 +106,14 @@ export default {
       if (storage.sendNotificationToChannel && storage.targetChannelId) {
         showToast(`${authorName} sent a tracked message`);
         
-        const messageContent = `**Keyword Detected!**\n\n**User:** <@${author.id}> (Username: ${authorName}, ID: ${author.id})\n**Message:** ${m.content}\n**Location:** ${locationType}${extraInfo}\n**Message Link:** ${messageLink}`;
+        const messageContent = `**Keyword Detected!**\n\n**User:** <@${author.id}> (Username: ${authorName}, ID: ${author.id})\n**Keyword:** ${matchedKeyword}\n**Message:** ${m.content}\n**Location:** ${locationType}${extraInfo}\n**Message Link:** ${messageLink}`;
         
-        MessageActions.sendMessage(storage.targetChannelId.trim(), { content: messageContent, validNonShortcutEmojis: [] });
+        HTTP.post({
+          url: `/channels/${storage.targetChannelId.trim()}/messages`,
+          body: { content: messageContent }
+        });
       } else {
-        showToast(`${authorName} said "${storage.keyword}" in ${locationStr}`);
+        showToast(`${authorName} said "${matchedKeyword}" in ${locationStr}`);
       }
     };
 
