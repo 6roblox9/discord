@@ -1,23 +1,106 @@
-import { React } from "@vendetta/metro/common";
+import { React, ReactNative as RN } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
 import { findByProps } from "@vendetta/metro";
+import { showToast } from "@vendetta/ui/toasts";
 import { useProxy } from "@vendetta/storage";
 
 const { ScrollView } = findByProps("ScrollView");
-const { TableRowGroup, TableSwitchRow, Stack, TextInput } = findByProps(
+const { TableRowGroup, TableSwitchRow, Stack, TextInput, TableRow } = findByProps(
   "TableSwitchRow",
   "TableRowGroup",
   "Stack",
-  "TableRow"
+  "TableRow",
+  "TextInput"
 );
 const { Text } = findByProps("Text", "View");
+const { Clipboard } = RN;
 
 export default function Settings() {
   useProxy(storage);
+  const [newKeyword, setNewKeyword] = React.useState("");
+
+  const addKeyword = () => {
+    const kw = newKeyword.trim();
+    if (kw && !storage.keywords.includes(kw)) {
+      storage.keywords = [...storage.keywords, kw];
+      setNewKeyword("");
+    }
+  };
+
+  const removeKeyword = (kw: string) => {
+    storage.keywords = storage.keywords.filter((k: string) => k !== kw);
+  };
+
+  const exportKeywords = () => {
+    Clipboard.setString(JSON.stringify(storage.keywords));
+    showToast("Exported to clipboard");
+  };
+
+  const importKeywords = async () => {
+    const text = await Clipboard.getString();
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        storage.keywords = parsed;
+        showToast("Imported successfully");
+      } else {
+        showToast("Invalid JSON format");
+      }
+    } catch (e) {
+      showToast("Invalid JSON format");
+    }
+  };
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 10 }}>
       <Stack spacing={8}>
+
+        <TableRowGroup title="Keywords Setup">
+          <Stack spacing={4} style={{ padding: 10 }}>
+            <TextInput
+              placeholder="Enter keyword or phrase..."
+              value={newKeyword}
+              onChange={(v: string) => setNewKeyword(v)}
+              onSubmitEditing={addKeyword}
+            />
+            <RN.TouchableOpacity 
+              onPress={addKeyword} 
+              style={{ backgroundColor: "#5865F2", padding: 10, borderRadius: 8, alignItems: "center", marginTop: 4 }}
+            >
+              <Text style={{ color: "white", fontWeight: "bold" }}>Add Keyword</Text>
+            </RN.TouchableOpacity>
+          </Stack>
+
+          {storage.keywords.map((kw: string, index: number) => (
+            <TableRow
+              key={index}
+              label={kw}
+              trailing={
+                <RN.TouchableOpacity 
+                  onPress={() => removeKeyword(kw)} 
+                  style={{ padding: 6, backgroundColor: "#ED4245", borderRadius: 6 }}
+                >
+                  <Text style={{ color: "white", fontWeight: "bold", fontSize: 12 }}>X</Text>
+                </RN.TouchableOpacity>
+              }
+            />
+          ))}
+
+          <Stack spacing={4} style={{ padding: 10, flexDirection: "row", justifyContent: "space-between" }}>
+            <RN.TouchableOpacity 
+              onPress={exportKeywords} 
+              style={{ backgroundColor: "#4F545C", padding: 10, borderRadius: 8, flex: 1, marginRight: 4, alignItems: "center" }}
+            >
+              <Text style={{ color: "white", fontWeight: "bold" }}>Export JSON</Text>
+            </RN.TouchableOpacity>
+            <RN.TouchableOpacity 
+              onPress={importKeywords} 
+              style={{ backgroundColor: "#4F545C", padding: 10, borderRadius: 8, flex: 1, marginLeft: 4, alignItems: "center" }}
+            >
+              <Text style={{ color: "white", fontWeight: "bold" }}>Import JSON</Text>
+            </RN.TouchableOpacity>
+          </Stack>
+        </TableRowGroup>
 
         <TableRowGroup title="Tracking Target">
           <TableSwitchRow
@@ -44,16 +127,6 @@ export default function Settings() {
               />
             </Stack>
           )}
-        </TableRowGroup>
-
-        <TableRowGroup title="Keyword Setup">
-          <Stack spacing={4} style={{ padding: 10 }}>
-            <TextInput
-              placeholder="Enter keyword or phrase to track..."
-              value={storage.keyword}
-              onChange={(v: string) => (storage.keyword = v)}
-            />
-          </Stack>
         </TableRowGroup>
 
         <TableRowGroup title="Tracking Locations">
