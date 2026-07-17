@@ -8,7 +8,7 @@ const ChannelStore = findByProps("getChannel");
 const GuildStore = findByProps("getGuild");
 const UserStore = findByProps("getUser", "getCurrentUser");
 const RelationshipStore = findByProps("getFriendIDs");
-const HTTP = findByProps("get", "post", "put", "patch");
+const RestAPI = findByProps("get", "post", "del", "patch");
 
 if (storage.trackServers === undefined) storage.trackServers = true;
 if (storage.trackGroups === undefined) storage.trackGroups = true;
@@ -114,10 +114,11 @@ export default {
           messageContent += `**Message Link:** https://discord.com/channels/@me/${c.id}/${m.id}`;
         }
 
-        HTTP.post({
+        RestAPI.post({
           url: `/channels/${storage.targetChannelId.trim()}/messages`,
           body: { content: messageContent }
-        });
+        }).catch(() => {});
+        
         showToast(`${authorName} sent a tracked message`);
       } else {
         let locationStr = "DM";
