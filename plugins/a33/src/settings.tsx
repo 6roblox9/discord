@@ -1,131 +1,91 @@
-import { React, ReactNative as RN } from "@vendetta/metro/common";
+import { React } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
 import { findByProps } from "@vendetta/metro";
-import { showToast } from "@vendetta/ui/toasts";
 import { useProxy } from "@vendetta/storage";
-import { getAssetIDByName } from "@vendetta/ui/assets";
 
 const { ScrollView } = findByProps("ScrollView");
-const { TableRowGroup, TableRow, TableSwitchRow, Stack, TextInput } = findByProps(
+const { TableRowGroup, TableSwitchRow, Stack, TextInput } = findByProps(
   "TableSwitchRow",
-  "TableCheckboxRow",
   "TableRowGroup",
   "Stack",
   "TableRow"
 );
-
-storage.userIds ??= [];
-storage.trackFriends ??= false;
+const { Text } = findByProps("Text", "View");
 
 export default function Settings() {
   useProxy(storage);
-  const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
-  const [newUserId, setNewUserId] = React.useState("");
-
-  const addUserId = () => {
-    if (!newUserId.trim()) {
-      showToast("Please enter a user ID", getAssetIDByName("Small"));
-      return;
-    }
-
-    const userIds = storage.userIds || [];
-    if (!userIds.includes(newUserId.trim())) {
-      storage.userIds = [...userIds, newUserId.trim()];
-      setNewUserId("");
-      forceUpdate();
-      showToast("User ID added", getAssetIDByName("Check"));
-    } else {
-      showToast("User ID already exists", getAssetIDByName("Warning"));
-    }
-  };
-
-  const removeUserId = (userId: string) => {
-    storage.userIds = storage.userIds.filter((id: string) => id !== userId);
-    forceUpdate();
-    showToast("User ID removed", getAssetIDByName("Check"));
-  };
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 10 }}>
       <Stack spacing={8}>
-        <TableRowGroup title="Tracking Settings">
-          <TableSwitchRow
-            label="Track Friends"
-            subLabel="Enable tracking for your friends"
-            value={storage.trackFriends}
-            onValueChange={(value: boolean) => {
-              storage.trackFriends = value;
-              forceUpdate();
-              showToast(value ? "Friend tracking enabled" : "Friend tracking disabled", getAssetIDByName("Check"));
-            }}
-          />
-        </TableRowGroup>
-
-        <TableRowGroup title="Add User ID">
-          <Stack spacing={4}>
+        <TableRowGroup title="Keyword Setup">
+          <Stack spacing={4} style={{ padding: 10 }}>
             <TextInput
-              placeholder="Enter user ID"
-              value={newUserId}
-              onChange={setNewUserId}
-              isClearable
-              onSubmitEditing={addUserId}
-              returnKeyType="done"
+              placeholder="Enter keyword or phrase to track..."
+              value={storage.keyword}
+              onChange={(v: string) => (storage.keyword = v)}
             />
           </Stack>
         </TableRowGroup>
 
-        <TableRowGroup>
-          <TableRow
-            label="Add User ID"
-            subLabel="Add a specific user ID to track"
-            trailing={<TableRow.Arrow />}
-            onPress={addUserId}
+        <TableRowGroup title="Tracking Locations">
+          <TableSwitchRow
+            label="Track Servers"
+            value={storage.trackServers}
+            onValueChange={(v: boolean) => (storage.trackServers = v)}
+          />
+          <TableSwitchRow
+            label="Track Group DMs"
+            value={storage.trackGroups}
+            onValueChange={(v: boolean) => (storage.trackGroups = v)}
+          />
+          <TableSwitchRow
+            label="Track DMs"
+            value={storage.trackDMs}
+            onValueChange={(v: boolean) => (storage.trackDMs = v)}
           />
         </TableRowGroup>
 
-        {storage.userIds && storage.userIds.length > 0 && (
-          <TableRowGroup title="Tracked User IDs">
-            {storage.userIds.map((userId: string, index: number) => (
-              <TableRow
-                key={index}
-                label={userId}
-                trailing={
-                  <RN.TouchableOpacity
-                    onPress={() => removeUserId(userId)}
-                    style={{
-                      padding: 8,
-                      backgroundColor: "#ff4d4d",
-                      borderRadius: 12,
-                      width: 24,
-                      height: 24,
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <RN.Image
-                      source={getAssetIDByName("TrashIcon")}
-                      style={{ width: 14, height: 14, tintColor: "#ffffff" }}
-                    />
-                  </RN.TouchableOpacity>
-                }
-              />
-            ))}
-          </TableRowGroup>
-        )}
+        <TableRowGroup title="Matching Rules">
+          <TableSwitchRow
+            label="Exact Match"
+            subLabel="Message must be exactly the keyword"
+            value={storage.exactMatch}
+            onValueChange={(v: boolean) => (storage.exactMatch = v)}
+          />
+          <TableSwitchRow
+            label="Case Sensitive"
+            subLabel="Match exact uppercase and lowercase letters"
+            value={storage.caseSensitive}
+            onValueChange={(v: boolean) => (storage.caseSensitive = v)}
+          />
+          <TableSwitchRow
+            label="Match in a Sentence"
+            subLabel="Keyword can be part of a larger sentence"
+            value={storage.inSentence}
+            onValueChange={(v: boolean) => (storage.inSentence = v)}
+          />
+        </TableRowGroup>
 
-        <TableRowGroup title="About User Tracking">
-          <TableRow
-            label="How it Works"
-            subLabel="Track specific users by their Discord user IDs"
+        <TableRowGroup title="Advanced Notifications">
+          <TableSwitchRow
+            label="Send Notifications to Channel"
+            subLabel="Forward detected messages to a specific channel"
+            value={storage.sendNotificationToChannel}
+            onValueChange={(v: boolean) => (storage.sendNotificationToChannel = v)}
           />
-          <TableRow
-            label="Finding User IDs"
-            subLabel="Enable Developer Mode in Discord settings, then open user profile and select three dots in right top, and copy their ID"
-          />
-          <TableRow
-            label="Friends vs Specific Users"
-            subLabel="Enable 'Track Friends' to track all friends, or add specific user IDs"
-          />
+          {storage.sendNotificationToChannel && (
+            <Stack spacing={4} style={{ padding: 10 }}>
+              <Text style={{ color: "#f23f42", fontSize: 12, marginBottom: 4, fontWeight: "bold" }}>
+                WARNING: You must own the target channel to maintain privacy and prevent spamming others.
+              </Text>
+              <TextInput
+                placeholder="Enter Target Channel ID..."
+                value={storage.targetChannelId}
+                onChange={(v: string) => (storage.targetChannelId = v)}
+              />
+            </Stack>
+          )}
         </TableRowGroup>
       </Stack>
     </ScrollView>
