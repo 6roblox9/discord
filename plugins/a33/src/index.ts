@@ -1,108 +1,103 @@
 import { findByProps } from "@vendetta/metro";
-import { after } from "@vendetta/patcher";
+import { showToast } from "@vendetta/ui/toasts";
 import { storage } from "@vendetta/plugin";
 import Settings from "./settings";
 
 const FluxDispatcher = findByProps("dispatch", "subscribe");
-const PresenceStore = findByProps("getStatus");
-const RelationshipStore = findByProps("getFriendIDs");
 const ChannelStore = findByProps("getChannel");
 const GuildStore = findByProps("getGuild");
-const UserStore = findByProps("getUser");
-const NotificationManager = findByProps("showNotification");
+const UserStore = findByProps("getUser", "getCurrentUser");
+const MessageActions = findByProps("sendMessage");
 
-if (storage.trackFriends === undefined) storage.trackFriends = true;
-if (!storage.userIds) storage.userIds = [];
+if (storage.trackServers === undefined) storage.trackServers = true;
+if (storage.trackGroups === undefined) storage.trackGroups = true;
+if (storage.trackDMs === undefined) storage.trackDMs = true;
+if (storage.exactMatch === undefined) storage.exactMatch = false;
+if (storage.caseSensitive === undefined) storage.caseSensitive = false;
+if (storage.inSentence === undefined) storage.inSentence = true;
+if (storage.sendNotificationToChannel === undefined) storage.sendNotificationToChannel = false;
+if (storage.keyword === undefined) storage.keyword = "";
+if (storage.targetChannelId === undefined) storage.targetChannelId = "";
 
-const lastStatuses: Record<string, string | undefined> = {};
-
-const getTrackedIds = () => {
-  const ids = new Set<string>();
-  if (storage.trackFriends) {
-    for (const id of RelationshipStore.getFriendIDs()) ids.add(id);
-  }
-  for (const id of storage.userIds) ids.add(id);
-  return [...ids];
-};
-
-const getName = (id: string) => UserStore.getUser(id)?.username ?? id;
-
-const getIcon = (id: string) => UserStore.getUser(id)?.getAvatarURL?.() ?? undefined;
-
-const notify = (id: string, body: string) => {
-  if (NotificationManager?.showNotification) {
-    NotificationManager.showNotification({
-      title: getName(id),
-      body: body,
-      icon: getIcon(id)
-    });
-  }
-};
-
-let unpatchPresence: (() => void) | null = null;
 let unsubMessage: (() => void) | null = null;
-let unsubTyping: (() => void) | null = null;
 
 export default {
   onLoad() {
-    for (const id of getTrackedIds()) {
-      lastStatuses[id] = PresenceStore.getStatus(id);
-    }
-
-    unpatchPresence = after("dispatch", FluxDispatcher, ([p]) => {
-      if (p?.type !== "PRESENCE_UPDATE") return;
-      const id = p.user?.id;
-      if (!getTrackedIds().includes(id)) return;
-      if (lastStatuses[id] !== p.status) {
-        lastStatuses[id] = p.status;
-        notify(id, `is now ${p.status}`);
-      }
-    });
-
     const onMessage = (p: any) => {
       const m = p?.message;
-      const id = m?.author?.id;
-      if (!getTrackedIds().includes(id)) return;
+      if (!m || !m.content || !storage.keyword) return;
+
+      const currentUser = UserStore.getCurrentUser();
+      if (m.author?.id === currentUser?.id) return;
+
       const c = ChannelStore.getChannel(m.channel_id);
       if (!c) return;
 
-      if (c.guild_id) {
-        const g = GuildStore.getGuild(c.guild_id);
-        notify(id, `messaged in ${g?.name} #${c.name}`);
-      } else if (c.type === 3) {
-        notify(id, `messaged in group`);
-      } else {
-        notify(id, `messaged in DM`);
+      if (c.guild_id && !storage.trackServers) return;
+      if (c.type === 3 && !storage.trackGroups) return;
+      if ((c.type === 1 || (c.type === 0 && !c.guild_id)) && !storage.trackDMs) return;
+
+      let content = m.content;
+      let kw = storage.keyword;
+
+      if (!storage.caseSensitive) {
+        content = content.toLowerCase();
+        kw = kw.toLowerCase();
       }
-    };
 
-    const onTyping = (p: any) => {
-      const id = p?.userId;
-      if (!getTrackedIds().includes(id)) return;
-      const c = ChannelStore.getChannel(p.channelId);
-      if (!c) return;
+      let isMatch = false;
+      if (storage.exactMatch) {
+        isMatch = content === kw;
+      } else if (storage.inSentence) {
+        isMatch = content.includes(kw);
+      } else {
+        const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, storage.caseSensitive ? '' : 'i');
+        isMatch = regex.test(m.content);
+      }
+
+      if (!isMatch) return;
+
+      const author = m.author;
+      const authorName = author.username;
+      let locationStr = "";
+      let messageLink = "";
+      let extraInfo = "";
+      let locationType = "";
 
       if (c.guild_id) {
         const g = GuildStore.getGuild(c.guild_id);
-        notify(id, `typing in ${g?.name} #${c.name}`);
+        locationType = "Server";
+        locationStr = `Server: ${g?.name} #${c.name}`;
+        messageLink = `https://discord.com/channels/${c.guild_id}/${c.id}/${m.id}`;
+        extraInfo = `\n**Server:** ${g?.name} (ID: ${c.guild_id})\n**Channel:** <#${c.id}> ${c.name} (ID: ${c.id})`;
       } else if (c.type === 3) {
-        notify(id, `typing in group`);
+        locationType = "Group";
+        locationStr = `Group: ${c.name || 'Unnamed'}`;
+        messageLink = `https://discord.com/channels/@me/${c.id}/${m.id}`;
+        extraInfo = `\n**Group:** <#${c.id}> ${c.name || 'Unnamed Group'} (ID: ${c.id})`;
       } else {
-        notify(id, `typing in DM`);
+        locationType = "DM";
+        locationStr = "DM";
+        messageLink = `https://discord.com/channels/@me/${c.id}/${m.id}`;
+      }
+
+      if (storage.sendNotificationToChannel && storage.targetChannelId) {
+        showToast(`${authorName} sent a tracked message`);
+        
+        const messageContent = `**Keyword Detected!**\n\n**User:** <@${author.id}> (Username: ${authorName}, ID: ${author.id})\n**Message:** ${m.content}\n**Location:** ${locationType}${extraInfo}\n**Message Link:** ${messageLink}`;
+        
+        MessageActions.sendMessage(storage.targetChannelId, { content: messageContent });
+      } else {
+        showToast(`${authorName} said "${storage.keyword}" in ${locationStr}`);
       }
     };
 
     FluxDispatcher.subscribe("MESSAGE_CREATE", onMessage);
-    FluxDispatcher.subscribe("TYPING_START", onTyping);
-
     unsubMessage = () => FluxDispatcher.unsubscribe("MESSAGE_CREATE", onMessage);
-    unsubTyping = () => FluxDispatcher.unsubscribe("TYPING_START", onTyping);
   },
 
   onUnload() {
-    unpatchPresence?.();
     unsubMessage?.();
-    unsubTyping?.();
   },
 
   settings: Settings,
