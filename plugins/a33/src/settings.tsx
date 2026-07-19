@@ -124,7 +124,7 @@ export default function Settings() {
         <TableRowGroup title="Data Management">
           <TableRow
             label="Export JSON"
-            subLabel="Copy your keywords list to the clipboard for backup"
+            subLabel="Copy your keywords list to the clipboard"
             trailing={<TableRow.Arrow />}
             onPress={exportKeywords}
           />
@@ -139,7 +139,7 @@ export default function Settings() {
         <TableRowGroup title="Tracking Target">
           <TableSwitchRow
             label="Track Everyone"
-            subLabel="Listen to messages from all users across Discord"
+            subLabel="Listen to messages from all users"
             value={storage.trackMode === "everyone"}
             onValueChange={() => { storage.trackMode = "everyone"; forceUpdate(); }}
           />
@@ -157,14 +157,14 @@ export default function Settings() {
           />
           <TableSwitchRow
             label="Ignore Bots"
-            subLabel="Do not track messages sent by Discord bot accounts"
+            subLabel="Do not track messages sent by Discord bots"
             value={storage.ignoreBots}
             onValueChange={(v: boolean) => { storage.ignoreBots = v; forceUpdate(); }}
           />
           {storage.trackMode === "custom" && (
             <Stack spacing={4} style={{ padding: 10 }}>
               <TextInput
-                placeholder="123456789, 987654321"
+                placeholder="1099039269391171765, 845374453939568720"
                 value={storage.customIds}
                 onChange={(v: string) => { storage.customIds = v; forceUpdate(); }}
               />
@@ -175,13 +175,13 @@ export default function Settings() {
         <TableRowGroup title="Tracking Locations">
           <TableSwitchRow
             label="Track Servers"
-            subLabel="Monitor messages sent in public or private servers"
+            subLabel="Monitor messages sent in servers"
             value={storage.trackServers}
             onValueChange={(v: boolean) => { storage.trackServers = v; forceUpdate(); }}
           />
           <TableSwitchRow
             label="Track Group DMs"
-            subLabel="Monitor messages sent in group chats"
+            subLabel="Monitor messages sent in group DMs"
             value={storage.trackGroups}
             onValueChange={(v: boolean) => { storage.trackGroups = v; forceUpdate(); }}
           />
@@ -191,6 +191,40 @@ export default function Settings() {
             value={storage.trackDMs}
             onValueChange={(v: boolean) => { storage.trackDMs = v; forceUpdate(); }}
           />
+          <TableSwitchRow
+            label="Ignore Servers"
+            subLabel="Do not track messages from specific servers"
+            value={storage.ignoreServersEnabled}
+            onValueChange={(v: boolean) => { 
+              storage.ignoreServersEnabled = v; 
+              if (v) storage.trackServers = true;
+              forceUpdate(); 
+            }}
+          />
+          {storage.ignoreServersEnabled && (
+            <Stack spacing={4} style={{ padding: 10 }}>
+              <TextInput
+                placeholder="1205207689832038522, 1196075698301968455"
+                value={storage.ignoredServerIds}
+                onChange={(v: string) => { storage.ignoredServerIds = v; forceUpdate(); }}
+              />
+            </Stack>
+          )}
+          <TableSwitchRow
+            label="Ignore Channels"
+            subLabel="Do not track messages from specific channels, DMs, or groups"
+            value={storage.ignoreChannelsEnabled}
+            onValueChange={(v: boolean) => { storage.ignoreChannelsEnabled = v; forceUpdate(); }}
+          />
+          {storage.ignoreChannelsEnabled && (
+            <Stack spacing={4} style={{ padding: 10 }}>
+              <TextInput
+                placeholder="1306947192594108467, 1284131216156655646"
+                value={storage.ignoredChannelIds}
+                onChange={(v: string) => { storage.ignoredChannelIds = v; forceUpdate(); }}
+              />
+            </Stack>
+          )}
         </TableRowGroup>
 
         <TableRowGroup title="Matching Rules">
@@ -229,7 +263,7 @@ export default function Settings() {
                 onChange={(v: string) => { storage.targetChannelId = v; forceUpdate(); }}
               />
               <Text style={{ color: "#f23f42", fontSize: 12, marginTop: 4, fontWeight: "bold" }}>
-                WARNING: You must own the target channel to maintain privacy and prevent spamming others.
+                WARNING: You must own the target channel to maintain privacy and prevent spamming others!!
               </Text>
             </Stack>
           )}
