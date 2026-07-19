@@ -155,15 +155,6 @@ export default function Settings() {
             value={storage.trackMode === "custom"}
             onValueChange={() => { storage.trackMode = "custom"; forceUpdate(); }}
           />
-          {storage.trackMode === "custom" && (
-            <Stack spacing={4} style={{ padding: 10 }}>
-              <TextInput
-                placeholder="1099039269391171765, 845374453939568720"
-                value={storage.customIds}
-                onChange={(v: string) => { storage.customIds = v; forceUpdate(); }}
-              />
-            </Stack>
-          )}
           <TableSwitchRow
             label="Ignore Bots"
             subLabel="Do not track messages sent by Discord bots"
@@ -185,6 +176,18 @@ export default function Settings() {
             }}
           />
         </TableRowGroup>
+
+        {storage.trackMode === "custom" && (
+          <TableRowGroup title="Custom User IDs">
+            <Stack spacing={4} style={{ padding: 10 }}>
+              <TextInput
+                placeholder="1099039269391171765, 845374453939568720"
+                value={storage.customIds}
+                onChange={(v: string) => { storage.customIds = v; forceUpdate(); }}
+              />
+            </Stack>
+          </TableRowGroup>
+        )}
 
         <TableRowGroup title="Tracking Locations">
           <TableSwitchRow
@@ -210,6 +213,12 @@ export default function Settings() {
             onValueChange={(v: boolean) => { storage.trackDMs = v; forceUpdate(); }}
           />
           <TableSwitchRow
+            label="Track Channels"
+            subLabel="Track specific channels even if they are in an ignored server"
+            value={storage.trackChannelsEnabled}
+            onValueChange={(v: boolean) => { storage.trackChannelsEnabled = v; forceUpdate(); }}
+          />
+          <TableSwitchRow
             label="Ignore Servers"
             subLabel="Do not track messages from specific servers"
             value={storage.ignoreServersEnabled}
@@ -219,7 +228,28 @@ export default function Settings() {
               forceUpdate(); 
             }}
           />
-          {storage.ignoreServersEnabled && (
+          <TableSwitchRow
+            label="Ignore Channels"
+            subLabel="Do not track messages from specific channels, DMs, or groups"
+            value={storage.ignoreChannelsEnabled}
+            onValueChange={(v: boolean) => { storage.ignoreChannelsEnabled = v; forceUpdate(); }}
+          />
+        </TableRowGroup>
+
+        {storage.trackChannelsEnabled && (
+          <TableRowGroup title="Tracked Channel IDs">
+            <Stack spacing={4} style={{ padding: 10 }}>
+              <TextInput
+                placeholder="1205207690352005243, 1296197038006075543"
+                value={storage.trackedChannelIds}
+                onChange={(v: string) => { storage.trackedChannelIds = v; forceUpdate(); }}
+              />
+            </Stack>
+          </TableRowGroup>
+        )}
+
+        {storage.ignoreServersEnabled && (
+          <TableRowGroup title="Ignored Server IDs">
             <Stack spacing={4} style={{ padding: 10 }}>
               <TextInput
                 placeholder="1205207689832038522, 1196075698301968455"
@@ -227,14 +257,11 @@ export default function Settings() {
                 onChange={(v: string) => { storage.ignoredServerIds = v; forceUpdate(); }}
               />
             </Stack>
-          )}
-          <TableSwitchRow
-            label="Ignore Channels"
-            subLabel="Do not track messages from specific channels, DMs, or groups"
-            value={storage.ignoreChannelsEnabled}
-            onValueChange={(v: boolean) => { storage.ignoreChannelsEnabled = v; forceUpdate(); }}
-          />
-          {storage.ignoreChannelsEnabled && (
+          </TableRowGroup>
+        )}
+
+        {storage.ignoreChannelsEnabled && (
+          <TableRowGroup title="Ignored Channel IDs">
             <Stack spacing={4} style={{ padding: 10 }}>
               <TextInput
                 placeholder="1306947192594108467, 1284131216156655646"
@@ -242,8 +269,8 @@ export default function Settings() {
                 onChange={(v: string) => { storage.ignoredChannelIds = v; forceUpdate(); }}
               />
             </Stack>
-          )}
-        </TableRowGroup>
+          </TableRowGroup>
+        )}
 
         <TableRowGroup title="Matching Rules">
           <TableSwitchRow
@@ -273,7 +300,10 @@ export default function Settings() {
             value={storage.sendNotificationToChannel}
             onValueChange={(v: boolean) => { storage.sendNotificationToChannel = v; forceUpdate(); }}
           />
-          {storage.sendNotificationToChannel && (
+        </TableRowGroup>
+
+        {storage.sendNotificationToChannel && (
+          <TableRowGroup title="Target Channel ID">
             <Stack spacing={4} style={{ padding: 10 }}>
               <TextInput
                 placeholder="Enter Target Channel ID..."
@@ -284,8 +314,8 @@ export default function Settings() {
                 WARNING: You must own the target channel to maintain privacy and prevent spamming others!!
               </Text>
             </Stack>
-          )}
-        </TableRowGroup>
+          </TableRowGroup>
+        )}
 
       </Stack>
     </ScrollView>
