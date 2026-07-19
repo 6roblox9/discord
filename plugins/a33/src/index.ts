@@ -22,6 +22,10 @@ if (storage.targetChannelId === undefined) storage.targetChannelId = "";
 if (storage.trackMode === undefined) storage.trackMode = "everyone";
 if (storage.customIds === undefined) storage.customIds = "";
 if (storage.ignoreBots === undefined) storage.ignoreBots = true;
+if (storage.ignoreServersEnabled === undefined) storage.ignoreServersEnabled = false;
+if (storage.ignoredServerIds === undefined) storage.ignoredServerIds = "";
+if (storage.ignoreChannelsEnabled === undefined) storage.ignoreChannelsEnabled = false;
+if (storage.ignoredChannelIds === undefined) storage.ignoredChannelIds = "";
 
 let unsubMessage: (() => void) | null = null;
 
@@ -48,6 +52,16 @@ export default {
 
       const c = ChannelStore.getChannel(m.channel_id);
       if (!c) return;
+
+      if (storage.ignoreChannelsEnabled && storage.ignoredChannelIds) {
+        const ignoredChannelsList = storage.ignoredChannelIds.split(",").map((id: string) => id.trim());
+        if (ignoredChannelsList.includes(c.id)) return;
+      }
+
+      if (c.guild_id && storage.ignoreServersEnabled && storage.ignoredServerIds) {
+        const ignoredServersList = storage.ignoredServerIds.split(",").map((id: string) => id.trim());
+        if (ignoredServersList.includes(c.guild_id)) return;
+      }
 
       if (c.guild_id && !storage.trackServers) return;
       if (c.type === 3 && !storage.trackGroups) return;
