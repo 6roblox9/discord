@@ -155,12 +155,6 @@ export default function Settings() {
             value={storage.trackMode === "custom"}
             onValueChange={() => { storage.trackMode = "custom"; forceUpdate(); }}
           />
-          <TableSwitchRow
-            label="Ignore Bots"
-            subLabel="Do not track messages sent by Discord bots"
-            value={storage.ignoreBots}
-            onValueChange={(v: boolean) => { storage.ignoreBots = v; forceUpdate(); }}
-          />
           {storage.trackMode === "custom" && (
             <Stack spacing={4} style={{ padding: 10 }}>
               <TextInput
@@ -170,6 +164,26 @@ export default function Settings() {
               />
             </Stack>
           )}
+          <TableSwitchRow
+            label="Ignore Bots"
+            subLabel="Do not track messages sent by Discord bots"
+            value={storage.ignoreBots}
+            onValueChange={(v: boolean) => { 
+              storage.ignoreBots = v; 
+              if (v) storage.trackEmbeds = false;
+              forceUpdate(); 
+            }}
+          />
+          <TableSwitchRow
+            label="Track Embeds"
+            subLabel="Track keywords inside embedded messages (disables Ignore Bots)"
+            value={storage.trackEmbeds}
+            onValueChange={(v: boolean) => { 
+              storage.trackEmbeds = v; 
+              if (v) storage.ignoreBots = false;
+              forceUpdate(); 
+            }}
+          />
         </TableRowGroup>
 
         <TableRowGroup title="Tracking Locations">
@@ -177,7 +191,11 @@ export default function Settings() {
             label="Track Servers"
             subLabel="Monitor messages sent in servers"
             value={storage.trackServers}
-            onValueChange={(v: boolean) => { storage.trackServers = v; forceUpdate(); }}
+            onValueChange={(v: boolean) => { 
+              storage.trackServers = v; 
+              if (!v) storage.ignoreServersEnabled = false;
+              forceUpdate(); 
+            }}
           />
           <TableSwitchRow
             label="Track Group DMs"
