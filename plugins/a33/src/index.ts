@@ -23,6 +23,8 @@ if (storage.trackMode === undefined) storage.trackMode = "everyone";
 if (storage.customIds === undefined) storage.customIds = "";
 if (storage.ignoreBots === undefined) storage.ignoreBots = true;
 if (storage.trackEmbeds === undefined) storage.trackEmbeds = false;
+if (storage.trackChannelsEnabled === undefined) storage.trackChannelsEnabled = false;
+if (storage.trackedChannelIds === undefined) storage.trackedChannelIds = "";
 if (storage.ignoreServersEnabled === undefined) storage.ignoreServersEnabled = false;
 if (storage.ignoredServerIds === undefined) storage.ignoredServerIds = "";
 if (storage.ignoreChannelsEnabled === undefined) storage.ignoreChannelsEnabled = false;
@@ -76,14 +78,22 @@ export default {
         if (ignoredChannelsList.includes(c.id)) return;
       }
 
-      if (c.guild_id && storage.ignoreServersEnabled && storage.ignoredServerIds) {
-        const ignoredServersList = storage.ignoredServerIds.split(",").map((id: string) => id.trim());
-        if (ignoredServersList.includes(c.guild_id)) return;
+      let isTrackedChannel = false;
+      if (storage.trackChannelsEnabled && storage.trackedChannelIds) {
+        const trackedChannelsList = storage.trackedChannelIds.split(",").map((id: string) => id.trim());
+        if (trackedChannelsList.includes(c.id)) isTrackedChannel = true;
       }
 
-      if (c.guild_id && !storage.trackServers) return;
-      if (c.type === 3 && !storage.trackGroups) return;
-      if ((c.type === 1 || (c.type === 0 && !c.guild_id)) && !storage.trackDMs) return;
+      if (!isTrackedChannel) {
+        if (c.guild_id && storage.ignoreServersEnabled && storage.ignoredServerIds) {
+          const ignoredServersList = storage.ignoredServerIds.split(",").map((id: string) => id.trim());
+          if (ignoredServersList.includes(c.guild_id)) return;
+        }
+
+        if (c.guild_id && !storage.trackServers) return;
+        if (c.type === 3 && !storage.trackGroups) return;
+        if ((c.type === 1 || (c.type === 0 && !c.guild_id)) && !storage.trackDMs) return;
+      }
 
       let matchedKeyword = "";
 
