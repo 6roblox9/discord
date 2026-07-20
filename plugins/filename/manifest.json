@@ -1,0 +1,14 @@
+{
+    "name": "filename",
+    "description": "filename",
+    "authors": [
+        {
+            "name": "coder.gg",
+            "id": "1099039269391171765"
+        }
+    ],
+    "main": "src/index.ts",
+    "vendetta": {
+        "icon": "PencilIcon"
+    }
+}
