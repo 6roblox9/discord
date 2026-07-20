@@ -1,34 +1,35 @@
 import { findByProps } from "@vendetta/metro";
+import { ReactNative } from "@vendetta/metro/common";
 import { instead } from "@vendetta/patcher";
 import { showToast } from "@vendetta/ui/toasts";
-import { clipboard } from "@vendetta/metro/common";
 
-const MessageActions = findByProps("sendMessage", "editMessage");
+const RestAPI = findByProps("get", "post", "del", "patch");
+const { Clipboard } = ReactNative;
 
-let unpatchSendMessage: (() => void) | null = null;
+let unpatchPost: (() => void) | null = null;
 
 export default {
     onLoad() {
-        if (!MessageActions || !MessageActions.sendMessage) return;
+        if (!RestAPI || !RestAPI.post) return;
 
-        unpatchSendMessage = instead("sendMessage", MessageActions, (args, orig) => {
-            const [channelId, messageData] = args;
+        unpatchPost = instead("post", RestAPI, (args, orig) => {
+            const req = args[0];
 
-            if (messageData && messageData.content === ".") {
-                const attachments = messageData.attachments || messageData.fileUploads;
+            if (req && req.url && typeof req.url === "string" && req.url.match(/^\/channels\/\d+\/messages/)) {
+                const body = req.body;
 
-                if (attachments && attachments.length > 0) {
-                    const slicedAttachments = attachments.slice(0, 10);
+                if (body && body.content === "." && body.attachments && body.attachments.length > 0) {
+                    const slicedAttachments = body.attachments.slice(0, 10);
                     
                     const clipboardText = slicedAttachments.map((attachment: any) => {
                         const uploadedFilename = attachment.uploaded_filename || attachment.filename;
                         return `.filename ${uploadedFilename}`;
                     }).join("\n");
 
-                    clipboard.setString(clipboardText);
+                    Clipboard.setString(clipboardText);
                     showToast("Copied filenames to clipboard");
                     
-                    return Promise.resolve({ ok: true });
+                    return Promise.reject(new Error("Prevented by plugin"));
                 }
             }
 
@@ -37,7 +38,7 @@ export default {
     },
 
     onUnload() {
-        if (unpatchSendMessage) unpatchSendMessage();
-        unpatchSendMessage = null;
+        if (unpatchPost) unpatchPost();
+        unpatchPost = null;
     }
 };
