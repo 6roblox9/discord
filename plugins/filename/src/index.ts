@@ -1,9 +1,10 @@
 import { findByProps } from "@vendetta/metro";
-import { before } from "@vendetta/patcher";
+import { instead } from "@vendetta/patcher";
 import { showToast } from "@vendetta/ui/toasts";
 import { clipboard } from "@vendetta/metro/common";
 
-const MessageActions = findByProps("sendMessage", "receiveMessage") || findByProps("sendMessage", "editMessage");
+const MessageActions = findByProps("sendMessage", "editMessage");
+const UploadStore = findByProps("getUploads");
 
 let unpatchSendMessage: (() => void) | null = null;
 
@@ -11,32 +12,46 @@ export default {
     onLoad() {
         if (!MessageActions || !MessageActions.sendMessage) return;
 
-        unpatchSendMessage = before("sendMessage", MessageActions, (args) => {
+        unpatchSendMessage = instead("sendMessage", MessageActions, (args, orig) => {
+            const channelId = args[0];
             const messageData = args[1];
 
             if (messageData && messageData.content === ".") {
-                const attachments = messageData.attachments || messageData.fileUploads || [];
+                let uploads: any[] = [];
+                
+                if (UploadStore && typeof UploadStore.getUploads === "function") {
+                    uploads = UploadStore.getUploads(channelId, 0) || [];
+                }
 
-                if (attachments.length > 0) {
-                    const slicedAttachments = attachments.slice(0, 10);
+                if (!uploads || uploads.length === 0) {
+                    uploads = messageData.attachments || messageData.fileUploads || [];
+                }
+
+                if (uploads.length > 0) {
+                    const sliced = uploads.slice(0, 10);
                     
-                    const clipboardText = slicedAttachments.map((attachment: any) => {
-                        const uploadedFilename = attachment.uploaded_filename || attachment.filename || "image.png";
-                        return `.filename ${uploadedFilename}`;
+                    const isStillUploading = sliced.some(
+                        (att) => !att.uploadedFilename && !att.uploaded_filename
+                    );
+
+                    if (isStillUploading) {
+                        showToast("Please wait for images to finish uploading...");
+                        return Promise.resolve({ ok: false });
+                    }
+
+                    const clipboardText = sliced.map((att) => {
+                        const filename = att.uploadedFilename || att.uploaded_filename;
+                        return `.filename ${filename}`;
                     }).join("\n");
 
                     clipboard.setString(clipboardText);
                     showToast("Copied filenames to clipboard");
 
-                    messageData.content = "";
-                    messageData.attachments = [];
-                    if (messageData.fileUploads) {
-                        messageData.fileUploads = [];
-                    }
-
-                    args[1] = messageData;
+                    return Promise.resolve({ ok: true });
                 }
             }
+
+            return orig(...args);
         });
     },
 
