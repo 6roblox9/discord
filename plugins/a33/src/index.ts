@@ -9,6 +9,7 @@ const GuildStore = findByProps("getGuild");
 const UserStore = findByProps("getUser", "getCurrentUser");
 const RelationshipStore = findByProps("getFriendIDs");
 const RestAPI = findByProps("get", "post", "del", "patch");
+const ReadStateStore = findByProps("getMentionCount", "getUnreadCount");
 
 const defaults = {
   trackServers: true,
@@ -18,6 +19,7 @@ const defaults = {
   caseSensitive: false,
   inSentence: true,
   sendNotificationToChannel: false,
+  makeUnread: true,
   keywords: [],
   targetChannelId: "",
   trackMode: "everyone",
@@ -162,9 +164,22 @@ export default {
           messageContent += `**Message Link:** https://discord.com/channels/@me/${c.id}/${m.id}`;
         }
 
+        const targetId = storage.targetChannelId.trim();
+        const prevMentionCount = ReadStateStore?.getMentionCount(targetId) || 0;
+
         RestAPI.post({
-          url: `/channels/${storage.targetChannelId.trim()}/messages`,
+          url: `/channels/${targetId}/messages`,
           body: { content: messageContent }
+        }).then((res: any) => {
+          if (storage.makeUnread && res && res.id) {
+            RestAPI.post({
+              url: `/channels/${targetId}/messages/${res.id}/ack`,
+              body: {
+                manual: true,
+                mention_count: prevMentionCount + 1
+              }
+            }).catch(() => {});
+          }
         }).catch(() => {});
         
         showToast(`${authorName} sent a tracked message`);
