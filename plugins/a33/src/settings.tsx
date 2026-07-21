@@ -300,6 +300,12 @@ export default function Settings() {
             value={storage.sendNotificationToChannel}
             onValueChange={(v: boolean) => { storage.sendNotificationToChannel = v; forceUpdate(); }}
           />
+          <TableSwitchRow
+            label="Make Notifications to Webhook"
+            subLabel="Send detected messages to a Discord webhook"
+            value={storage.sendNotificationToWebhook}
+            onValueChange={(v: boolean) => { storage.sendNotificationToWebhook = v; forceUpdate(); }}
+          />
         </TableRowGroup>
 
         {storage.sendNotificationToChannel && (
@@ -314,12 +320,18 @@ export default function Settings() {
                 WARNING: You must own the target channel to maintain privacy and prevent spamming others!!
               </Text>
             </Stack>
-            <TableSwitchRow
-              label="Make Notifications Unread"
-              subLabel="Mark the target channel as unread with a ping when new notifications arrive"
-              value={storage.makeUnread}
-              onValueChange={(v: boolean) => { storage.makeUnread = v; forceUpdate(); }}
-            />
+          </TableRowGroup>
+        )}
+
+        {storage.sendNotificationToWebhook && (
+          <TableRowGroup title="Webhook URL">
+            <Stack spacing={4} style={{ padding: 10 }}>
+              <TextInput
+                placeholder="Enter Webhook URL..."
+                value={storage.webhookUrl}
+                onChange={(v: string) => { storage.webhookUrl = v; forceUpdate(); }}
+              />
+            </Stack>
           </TableRowGroup>
         )}
 
