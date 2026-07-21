@@ -9,7 +9,6 @@ const GuildStore = findByProps("getGuild");
 const UserStore = findByProps("getUser", "getCurrentUser");
 const RelationshipStore = findByProps("getFriendIDs");
 const RestAPI = findByProps("get", "post", "del", "patch");
-const ReadStateStore = findByProps("getMentionCount", "getUnreadCount");
 
 const defaults = {
   trackServers: true,
@@ -165,7 +164,6 @@ export default {
         }
 
         const targetId = storage.targetChannelId.trim();
-        const prevMentionCount = ReadStateStore?.getMentionCount(targetId) || 0;
 
         RestAPI.post({
           url: `/channels/${targetId}/messages`,
@@ -176,7 +174,7 @@ export default {
               url: `/channels/${targetId}/messages/${res.id}/ack`,
               body: {
                 manual: true,
-                mention_count: prevMentionCount + 1
+                mention_count: 1
               }
             }).catch(() => {});
           }
