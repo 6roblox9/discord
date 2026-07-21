@@ -314,6 +314,12 @@ export default function Settings() {
                 WARNING: You must own the target channel to maintain privacy and prevent spamming others!!
               </Text>
             </Stack>
+            <TableSwitchRow
+              label="Make Notifications Unread"
+              subLabel="Mark the target channel as unread with a ping when new notifications arrive"
+              value={storage.makeUnread}
+              onValueChange={(v: boolean) => { storage.makeUnread = v; forceUpdate(); }}
+            />
           </TableRowGroup>
         )}
 
