@@ -136,6 +136,15 @@ export default function Settings() {
           />
         </TableRowGroup>
 
+        <TableRowGroup title="Plugin Settings">
+          <TableSwitchRow
+            label="Add to Settings"
+            subLabel="Show plugin icon in Discord settings for quick access"
+            value={storage.addToSettings}
+            onValueChange={(v: boolean) => { storage.addToSettings = v; forceUpdate(); }}
+          />
+        </TableRowGroup>
+
         <TableRowGroup title="Tracking Target">
           <TableSwitchRow
             label="Track Everyone"
@@ -156,12 +165,6 @@ export default function Settings() {
             onValueChange={() => { storage.trackMode = "custom"; forceUpdate(); }}
           />
           <TableSwitchRow
-            label="Ignore Users"
-            subLabel="Do not track messages sent by specific users"
-            value={storage.ignoreUsersEnabled}
-            onValueChange={(v: boolean) => { storage.ignoreUsersEnabled = v; forceUpdate(); }}
-          />
-          <TableSwitchRow
             label="Ignore Bots"
             subLabel="Do not track messages sent by Discord bots"
             value={storage.ignoreBots}
@@ -180,6 +183,12 @@ export default function Settings() {
               if (v) storage.ignoreBots = false;
               forceUpdate(); 
             }}
+          />
+          <TableSwitchRow
+            label="Ignore Users"
+            subLabel="Do not track messages from specific users"
+            value={storage.ignoreUsersEnabled}
+            onValueChange={(v: boolean) => { storage.ignoreUsersEnabled = v; forceUpdate(); }}
           />
         </TableRowGroup>
 
@@ -292,16 +301,16 @@ export default function Settings() {
 
         <TableRowGroup title="Matching Rules">
           <TableSwitchRow
+            label="Match Whole Words"
+            subLabel="Match keyword as a standalone word only, not inside another word"
+            value={storage.wholeWords}
+            onValueChange={(v: boolean) => { storage.wholeWords = v; forceUpdate(); }}
+          />
+          <TableSwitchRow
             label="Exact Match"
             subLabel="The message content must be exactly the keyword with no other words"
             value={storage.exactMatch}
             onValueChange={(v: boolean) => { storage.exactMatch = v; forceUpdate(); }}
-          />
-          <TableSwitchRow
-            label="Exact Word Match"
-            subLabel="Match exact word in a sentence (e.g. 'Syl' matches 'Hey syl' but not 'Syllabus')"
-            value={storage.exactWordMatch}
-            onValueChange={(v: boolean) => { storage.exactWordMatch = v; forceUpdate(); }}
           />
           <TableSwitchRow
             label="Case Sensitive"
@@ -311,7 +320,7 @@ export default function Settings() {
           />
           <TableSwitchRow
             label="Match in a Sentence"
-            subLabel="The keyword can be detected even if it is part of a longer sentence"
+            subLabel="The keyword can be detected even if it is part of a longer word"
             value={storage.inSentence}
             onValueChange={(v: boolean) => { storage.inSentence = v; forceUpdate(); }}
           />
@@ -358,15 +367,6 @@ export default function Settings() {
             </Stack>
           </TableRowGroup>
         )}
-
-        <TableRowGroup title="Discord Settings Integration">
-          <TableSwitchRow
-            label="Pin to Settings"
-            subLabel="Show this plugin's settings directly in Discord settings"
-            value={storage.addToSettings}
-            onValueChange={(v: boolean) => { storage.addToSettings = v; forceUpdate(); }}
-          />
-        </TableRowGroup>
 
       </Stack>
     </ScrollView>
