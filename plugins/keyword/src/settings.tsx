@@ -136,6 +136,15 @@ export default function Settings() {
           />
         </TableRowGroup>
 
+        <TableRowGroup title="Plugin Settings">
+          <TableSwitchRow
+            label="Show in Discord Settings"
+            subLabel="Add a shortcut to this plugin in Discord's settings page"
+            value={storage.showInSettings}
+            onValueChange={(v: boolean) => { storage.showInSettings = v; forceUpdate(); }}
+          />
+        </TableRowGroup>
+
         <TableRowGroup title="Tracking Target">
           <TableSwitchRow
             label="Track Everyone"
@@ -175,12 +184,6 @@ export default function Settings() {
               forceUpdate(); 
             }}
           />
-          <TableSwitchRow
-            label="Ignore Users"
-            subLabel="Do not track messages from specific users"
-            value={storage.ignoreUsersEnabled}
-            onValueChange={(v: boolean) => { storage.ignoreUsersEnabled = v; forceUpdate(); }}
-          />
         </TableRowGroup>
 
         {storage.trackMode === "custom" && (
@@ -190,18 +193,6 @@ export default function Settings() {
                 placeholder="1099039269391171765, 845374453939568720"
                 value={storage.customIds}
                 onChange={(v: string) => { storage.customIds = v; forceUpdate(); }}
-              />
-            </Stack>
-          </TableRowGroup>
-        )}
-
-        {storage.ignoreUsersEnabled && (
-          <TableRowGroup title="Ignored User IDs">
-            <Stack spacing={4} style={{ padding: 10 }}>
-              <TextInput
-                placeholder="1099039269391171765, 845374453939568720"
-                value={storage.ignoredUserIds}
-                onChange={(v: string) => { storage.ignoredUserIds = v; forceUpdate(); }}
               />
             </Stack>
           </TableRowGroup>
@@ -236,6 +227,21 @@ export default function Settings() {
             value={storage.trackChannelsEnabled}
             onValueChange={(v: boolean) => { storage.trackChannelsEnabled = v; forceUpdate(); }}
           />
+        </TableRowGroup>
+
+        {storage.trackChannelsEnabled && (
+          <TableRowGroup title="Tracked Channel IDs">
+            <Stack spacing={4} style={{ padding: 10 }}>
+              <TextInput
+                placeholder="1205207690352005243, 1296197038006075543"
+                value={storage.trackedChannelIds}
+                onChange={(v: string) => { storage.trackedChannelIds = v; forceUpdate(); }}
+              />
+            </Stack>
+          </TableRowGroup>
+        )}
+
+        <TableRowGroup title="Ignoring">
           <TableSwitchRow
             label="Ignore Servers"
             subLabel="Do not track messages from specific servers"
@@ -252,19 +258,13 @@ export default function Settings() {
             value={storage.ignoreChannelsEnabled}
             onValueChange={(v: boolean) => { storage.ignoreChannelsEnabled = v; forceUpdate(); }}
           />
+          <TableSwitchRow
+            label="Ignore Users"
+            subLabel="Do not track messages from specific users"
+            value={storage.ignoreUsersEnabled}
+            onValueChange={(v: boolean) => { storage.ignoreUsersEnabled = v; forceUpdate(); }}
+          />
         </TableRowGroup>
-
-        {storage.trackChannelsEnabled && (
-          <TableRowGroup title="Tracked Channel IDs">
-            <Stack spacing={4} style={{ padding: 10 }}>
-              <TextInput
-                placeholder="1205207690352005243, 1296197038006075543"
-                value={storage.trackedChannelIds}
-                onChange={(v: string) => { storage.trackedChannelIds = v; forceUpdate(); }}
-              />
-            </Stack>
-          </TableRowGroup>
-        )}
 
         {storage.ignoreServersEnabled && (
           <TableRowGroup title="Ignored Server IDs">
@@ -285,6 +285,18 @@ export default function Settings() {
                 placeholder="1306947192594108467, 1284131216156655646"
                 value={storage.ignoredChannelIds}
                 onChange={(v: string) => { storage.ignoredChannelIds = v; forceUpdate(); }}
+              />
+            </Stack>
+          </TableRowGroup>
+        )}
+
+        {storage.ignoreUsersEnabled && (
+          <TableRowGroup title="Ignored User IDs">
+            <Stack spacing={4} style={{ padding: 10 }}>
+              <TextInput
+                placeholder="1099039269391171765, 845374453939568720"
+                value={storage.ignoredUserIds}
+                onChange={(v: string) => { storage.ignoredUserIds = v; forceUpdate(); }}
               />
             </Stack>
           </TableRowGroup>
