@@ -1,8 +1,6 @@
 import { findByProps } from "@vendetta/metro";
 import { showToast } from "@vendetta/ui/toasts";
 import { storage } from "@vendetta/plugin";
-import { plugin } from "@vendetta";
-import { manifest } from "@vendetta/plugin";
 import { getAssetIDByName } from "@vendetta/ui/assets";
 import Settings from "./settings";
 
@@ -220,9 +218,9 @@ export default {
       const { patchSettingsPin } = require("$/lib/pinToSettings");
       if (storage.addToSettings) {
         unpinSettings = patchSettingsPin({
-          key: manifest.name,
-          icon: getAssetIDByName(manifest.vendetta?.icon ?? ""),
-          title: () => manifest.name,
+          key: "Keyword Tracker",
+          icon: getAssetIDByName("ChatCheckIcon"),
+          title: () => "Keyword Tracker",
           predicate: () => storage.addToSettings,
           page: Settings,
         });
