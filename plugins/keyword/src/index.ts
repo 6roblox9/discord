@@ -47,7 +47,8 @@ const defaults = {
   ignoreChannelsEnabled: false,
   ignoredChannelIds: "",
   ignoreUsersEnabled: false,
-  ignoredUserIds: ""
+  ignoredUserIds: "",
+  showInSettings: true
 };
 
 for (const [key, value] of Object.entries(defaults)) {
@@ -233,17 +234,30 @@ function patchSettingsPin(tabs) {
 
 let unpatchSidebar: (() => void) | null = null;
 
+function updateSidebar() {
+    if (storage.showInSettings) {
+        if (!unpatchSidebar) {
+            try {
+                unpatchSidebar = patchSettingsPin({
+                    key: "keywordtracker",
+                    icon: getAssetIDByName("ChatCheckIcon"),
+                    title: () => "Keyword Tracker",
+                    predicate: () => storage.showInSettings === true,
+                    page: Settings,
+                });
+            } catch (error) {}
+        }
+    } else {
+        if (unpatchSidebar) {
+            unpatchSidebar();
+            unpatchSidebar = null;
+        }
+    }
+}
+
 export default {
   onLoad() {
-    try {
-      unpatchSidebar = patchSettingsPin({
-        key: "keywordtracker",
-        icon: getAssetIDByName("ic_search_24px"),
-        title: () => "Keyword Tracker",
-        predicate: () => true,
-        page: Settings,
-      });
-    } catch (error) {}
+    updateSidebar();
 
     const onMessage = (p: any) => {
       const m = p?.message;
@@ -414,7 +428,10 @@ export default {
 
   onUnload() {
     unsubMessage?.();
-    unpatchSidebar?.();
+    if (unpatchSidebar) {
+      unpatchSidebar();
+      unpatchSidebar = null;
+    }
   },
 
   settings: Settings,
