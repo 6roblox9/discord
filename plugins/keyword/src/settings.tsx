@@ -136,15 +136,6 @@ export default function Settings() {
           />
         </TableRowGroup>
 
-        <TableRowGroup title="Plugin Settings">
-          <TableSwitchRow
-            label="Add to Settings"
-            subLabel="Show plugin icon in Discord settings for quick access"
-            value={storage.addToSettings}
-            onValueChange={(v: boolean) => { storage.addToSettings = v; forceUpdate(); }}
-          />
-        </TableRowGroup>
-
         <TableRowGroup title="Tracking Target">
           <TableSwitchRow
             label="Track Everyone"
