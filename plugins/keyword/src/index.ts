@@ -1,6 +1,8 @@
 import { findByProps } from "@vendetta/metro";
 import { showToast } from "@vendetta/ui/toasts";
-import { storage, manifest } from "@vendetta/plugin";
+import { storage } from "@vendetta/plugin";
+import { plugin } from "@vendetta";
+import { manifest } from "@vendetta/plugin";
 import { getAssetIDByName } from "@vendetta/ui/assets";
 import { patchSettingsPin } from "$/lib/pinToSettings";
 import Settings from "./settings";
@@ -13,12 +15,11 @@ const RelationshipStore = findByProps("getFriendIDs");
 const RestAPI = findByProps("get", "post", "del", "patch");
 
 const defaults = {
-  addToSettings: true,
   trackServers: true,
   trackGroups: true,
   trackDMs: true,
   exactMatch: false,
-  exactWordMatch: true,
+  wholeWords: true,
   caseSensitive: false,
   inSentence: true,
   sendNotificationToChannel: false,
@@ -37,7 +38,8 @@ const defaults = {
   ignoreChannelsEnabled: false,
   ignoredChannelIds: "",
   ignoreUsersEnabled: false,
-  ignoredUserIds: ""
+  ignoredUserIds: "",
+  addToSettings: true
 };
 
 for (const [key, value] of Object.entries(defaults)) {
@@ -45,20 +47,10 @@ for (const [key, value] of Object.entries(defaults)) {
 }
 
 let unsubMessage: (() => void) | null = null;
-let unsubSettings: (() => void) | null = null;
+let unpinSettings: (() => void) | null = null;
 
 export default {
   onLoad() {
-    if (patchSettingsPin) {
-      unsubSettings = patchSettingsPin({
-        key: manifest.name,
-        icon: getAssetIDByName(manifest.vendetta?.icon ?? "SettingsIcon"),
-        title: () => manifest.name,
-        predicate: () => storage.addToSettings,
-        page: Settings,
-      });
-    }
-
     const onMessage = (p: any) => {
       const m = p?.message;
       if (!m || !storage.keywords || storage.keywords.length === 0) return;
@@ -86,7 +78,7 @@ export default {
       if (storage.ignoreBots && m.author?.bot) return;
 
       const authorId = m.author?.id;
-      
+
       if (storage.ignoreUsersEnabled && storage.ignoredUserIds) {
         const ignoredUsersList = storage.ignoredUserIds.split(",").map((id: string) => id.trim());
         if (ignoredUsersList.includes(authorId)) return;
@@ -139,11 +131,14 @@ export default {
         let isMatch = false;
         if (storage.exactMatch) {
           isMatch = content === testKw;
-        } else if (storage.exactWordMatch) {
-          const regex = new RegExp(`\\b${testKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+        } else if (storage.wholeWords) {
+          const regex = new RegExp(`\\b${testKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, storage.caseSensitive ? '' : 'i');
           isMatch = regex.test(content);
         } else if (storage.inSentence) {
           isMatch = content.includes(testKw);
+        } else {
+          const regex = new RegExp(`\\b${testKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, storage.caseSensitive ? '' : 'i');
+          isMatch = regex.test(fullContent);
         }
 
         if (isMatch) {
@@ -221,11 +216,21 @@ export default {
 
     FluxDispatcher.subscribe("MESSAGE_CREATE", onMessage);
     unsubMessage = () => FluxDispatcher.unsubscribe("MESSAGE_CREATE", onMessage);
+
+    if (storage.addToSettings) {
+      unpinSettings = patchSettingsPin({
+        key: manifest.name,
+        icon: getAssetIDByName(manifest.vendetta?.icon ?? ""),
+        title: () => manifest.name,
+        predicate: () => storage.addToSettings,
+        page: Settings,
+      });
+    }
   },
 
   onUnload() {
     unsubMessage?.();
-    unsubSettings?.();
+    unpinSettings?.();
   },
 
   settings: Settings,
