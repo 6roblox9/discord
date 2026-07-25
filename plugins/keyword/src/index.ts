@@ -1,6 +1,9 @@
 import { findByProps } from "@vendetta/metro";
 import { showToast } from "@vendetta/ui/toasts";
 import { storage } from "@vendetta/plugin";
+import { plugin } from "@vendetta";
+import { manifest } from "@vendetta/plugin";
+import { getAssetIDByName } from "@vendetta/ui/assets";
 import Settings from "./settings";
 
 const FluxDispatcher = findByProps("dispatch", "subscribe");
@@ -34,7 +37,8 @@ const defaults = {
   ignoreChannelsEnabled: false,
   ignoredChannelIds: "",
   ignoreUsersEnabled: false,
-  ignoredUserIds: ""
+  ignoredUserIds: "",
+  addToSettings: true
 };
 
 for (const [key, value] of Object.entries(defaults)) {
@@ -42,6 +46,7 @@ for (const [key, value] of Object.entries(defaults)) {
 }
 
 let unsubMessage: (() => void) | null = null;
+let unpinSettings: (() => void) | null = null;
 
 export default {
   onLoad() {
@@ -210,10 +215,24 @@ export default {
 
     FluxDispatcher.subscribe("MESSAGE_CREATE", onMessage);
     unsubMessage = () => FluxDispatcher.unsubscribe("MESSAGE_CREATE", onMessage);
+
+    try {
+      const { patchSettingsPin } = require("$/lib/pinToSettings");
+      if (storage.addToSettings) {
+        unpinSettings = patchSettingsPin({
+          key: manifest.name,
+          icon: getAssetIDByName(manifest.vendetta?.icon ?? ""),
+          title: () => manifest.name,
+          predicate: () => storage.addToSettings,
+          page: Settings,
+        });
+      }
+    } catch (e) {}
   },
 
   onUnload() {
     unsubMessage?.();
+    unpinSettings?.();
   },
 
   settings: Settings,
